@@ -1,5 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
+import { PrismaClient } from "@prisma/client";
 import { ensureSeed, makeUser, prisma, TEST_PASSWORD, uniq } from "./helpers";
+import { seed } from "../prisma/seed";
 import { authenticate, loadSession } from "@/server/auth/service";
 import { ROLE_PERMISSIONS, assignableRoles } from "@/server/rbac/permissions";
 import { passwordPolicyError } from "@/server/auth/password";
@@ -14,16 +16,21 @@ describe("Seed & database", () => {
   it("seed dapat dijalankan ulang tanpa duplikasi (#51)", async () => {
     await ensureSeed();
     await ensureSeed();
-    expect(await prisma.organization.count()).toBe(1);
+    expect(await prisma.organization.count({ where: { slug: "taman-pesona-rajeg-mulya" } })).toBe(1);
     expect(await prisma.role.count()).toBe(4);
-    const cats = await prisma.financeCategory.groupBy({ by: ["code"], _count: true });
+    const main = await prisma.organization.findUniqueOrThrow({ where: { slug: "taman-pesona-rajeg-mulya" } });
+    const cats = await prisma.financeCategory.groupBy({ by: ["code"], where: { organizationId: main.id }, _count: true });
     expect(cats.every((c) => c._count === 1)).toBe(true);
   });
 
   it("seed tidak membuat akun default", async () => {
-    const org = await prisma.organization.findFirstOrThrow();
-    const sa = await prisma.userRole.count({ where: { organizationId: org.id, role: { key: "SUPER_ADMIN" } } });
-    expect(sa).toBe(0);
+    // Organisasi baru agar tidak terpengaruh akun buatan test lain (urutan file bebas).
+    const users = await prisma.user.count();
+    const org = await seed(prisma as unknown as PrismaClient, uniq("seed-check-"));
+    await seed(prisma as unknown as PrismaClient, org.slug);
+    expect(await prisma.user.count({ where: { organizationId: org.id } })).toBe(0);
+    expect(await prisma.userRole.count({ where: { organizationId: org.id } })).toBe(0);
+    expect(await prisma.user.count()).toBe(users);
   });
 
   it("role-permission di DB sesuai matriks", async () => {
@@ -34,7 +41,7 @@ describe("Seed & database", () => {
   });
 
   it("audit log append-only di level database (#41)", async () => {
-    const org = await prisma.organization.findFirstOrThrow();
+    const org = await prisma.organization.findUniqueOrThrow({ where: { slug: "taman-pesona-rajeg-mulya" } });
     const log = await prisma.auditLog.create({ data: { organizationId: org.id, action: "T", module: "t", summary: "t" } });
     await expect(prisma.auditLog.update({ where: { id: log.id }, data: { summary: "ubah" } })).rejects.toThrow();
     await expect(prisma.auditLog.delete({ where: { id: log.id } })).rejects.toThrow();
@@ -47,7 +54,7 @@ describe("Seed & database", () => {
   });
 
   it("nomor dokumen berurutan dan unik", async () => {
-    const org = await prisma.organization.findFirstOrThrow();
+    const org = await prisma.organization.findUniqueOrThrow({ where: { slug: "taman-pesona-rajeg-mulya" } });
     const key = uniq("T");
     const nums = await Promise.all(Array.from({ length: 10 }, () => nextNumber(prisma, org.id, key)));
     expect(new Set(nums).size).toBe(10);

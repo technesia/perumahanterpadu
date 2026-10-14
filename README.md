@@ -137,6 +137,10 @@ gagal, klien otomatis beralih ke **polling 10 detik** (`/api/audit-logs?since=`)
 npm test
 ```
 
+CI (GitHub Actions, `.github/workflows/ci.yml`) menjalankan pada setiap push ke `main` dan setiap pull request:
+typecheck, lint, migration dari database kosong + seed dua kali, seluruh automated test terhadap PostgreSQL 16, dan
+production build.
+
 Test memakai `TEST_DATABASE_URL` sebagai koneksi dasar. Setiap run membuat database sementara
 `tprm_test_run_<timestamp>`, menerapkan migration dari kosong, menjalankan test, lalu menghapus database
 sementara tersebut. Database development tidak disentuh. User database memerlukan hak `CREATEDB`.
