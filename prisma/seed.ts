@@ -57,6 +57,12 @@ export async function seed(prisma: PrismaClient, slug = process.env.ORGANIZATION
 }
 
 if (require.main === module) {
+  // Muat .env hanya saat dijalankan langsung (bukan saat diimpor oleh test); env yang ada tidak ditimpa.
+  try {
+    process.loadEnvFile();
+  } catch {
+    // Tidak ada .env (Docker/CI): gunakan environment yang ada.
+  }
   const prisma = new PrismaClient();
   seed(prisma)
     .then((org) => console.log(`Seed selesai untuk organisasi: ${org.name}`))

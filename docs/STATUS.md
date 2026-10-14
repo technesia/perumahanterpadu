@@ -18,7 +18,7 @@ Status per 14 Oktober 2026. "Selesai" berarti: terhubung ke database, divalidasi
 | Administrasi | Pengajuan surat dengan dokumen, alur status, catatan internal, histori, jenis dapat dikonfigurasi |
 | Komunitas | Pengumuman (audiens, prioritas, lampiran), kegiatan, fasilitas, booking kalender anti-bentrok, notifikasi, UMKM (persetujuan pemilik), Posyandu |
 | Keamanan | Buku tamu masuk/keluar, laporan kejadian & tindak lanjut, direktori CCTV dengan akses berizin, kontak darurat |
-| Sistem | Activity Log append-only dengan realtime SSE + fallback polling, pengaturan kebijakan, health check |
+| Sistem | Activity Log append-only dengan realtime SSE + fallback polling, pengaturan kebijakan, Kontrol Akses Super Admin (nonaktifkan semua akun & mode lihat saja), health check |
 | Operasional | Backup/restore teruji, panduan deployment, uji performa |
 
 ## Belum aktif / memerlukan pihak eksternal

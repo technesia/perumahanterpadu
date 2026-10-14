@@ -3,7 +3,7 @@ import { ZodError } from "zod";
 import { Prisma } from "@prisma/client";
 import { AppError, AuthenticationError } from "./errors";
 import { getAuth } from "./auth/session";
-import type { AuthContext } from "./auth/context";
+import { assertCanWrite, type AuthContext } from "./auth/context";
 
 export type ActionResult<T = undefined> =
   | { ok: true; data?: T; message?: string }
@@ -31,11 +31,19 @@ export function toActionError(e: unknown): { ok: false; error: string; fieldErro
   return { ok: false, error: "Terjadi kesalahan pada server. Silakan coba lagi." };
 }
 
-/** Pembungkus server action: wajib login, error dinormalisasi. */
-export async function withAuth<T>(fn: (ctx: AuthContext) => Promise<ActionResult<T>>): Promise<ActionResult<T>> {
+/**
+ * Pembungkus server action: wajib login, error dinormalisasi.
+ * Setiap action dianggap MENGUBAH data (ditolak saat mode lihat saja), kecuali yang
+ * secara eksplisit ditandai `{ readOnly: true }` — aman secara default untuk action baru.
+ */
+export async function withAuth<T>(
+  fn: (ctx: AuthContext) => Promise<ActionResult<T>>,
+  opts: { readOnly?: boolean } = {},
+): Promise<ActionResult<T>> {
   try {
     const ctx = await getAuth();
     if (!ctx) throw new AuthenticationError();
+    if (!opts.readOnly) assertCanWrite(ctx);
     return await fn(ctx);
   } catch (e) {
     return toActionError(e);

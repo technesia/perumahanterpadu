@@ -1,7 +1,8 @@
 // DATA DEMO — hanya untuk development/demonstrasi. JANGAN dijalankan di production.
-// Semua nama diawali "[DEMO]". Password akun demo wajib diberikan lewat DEMO_PASSWORD.
+// Semua nama diawali "[DEMO]". Akun: superadmin.demo, admin.demo, warga.demo, security.demo. Password akun demo wajib diberikan lewat DEMO_PASSWORD.
 //
 //   DEMO_PASSWORD="..." npm run seed:demo
+import "../scripts/load-env";
 import { PrismaClient } from "@prisma/client";
 import { seed } from "./seed";
 import { hashPassword, passwordPolicyError } from "../src/server/auth/password";
@@ -32,6 +33,7 @@ async function main() {
   }
   await user("admin.demo", "[DEMO] Admin RT", "ADMIN");
   await user("security.demo", "[DEMO] Petugas Keamanan", "SECURITY");
+  await user("superadmin.demo", "[DEMO] Super Admin", "SUPER_ADMIN");
 
   const type = await prisma.iplType.upsert({
     where: { organizationId_name: { organizationId: org.id, name: "[DEMO] IPL Bulanan" } },
@@ -83,7 +85,7 @@ async function main() {
       await prisma.resident.update({ where: { id: resident.id }, data: { userId: u.id } });
     }
   }
-  console.log("Data demo siap. Akun: admin.demo, warga.demo, security.demo (password = DEMO_PASSWORD).");
+  console.log("Data demo siap. Akun: superadmin.demo, admin.demo, warga.demo, security.demo (password = DEMO_PASSWORD).");
 }
 
 main().catch((e) => { console.error(e.message ?? e); process.exitCode = 1; }).finally(() => prisma.$disconnect());

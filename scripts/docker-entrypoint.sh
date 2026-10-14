@@ -12,7 +12,7 @@ echo "[start] seed master data"
 npm run --silent db:seed
 
 if [ -n "$DEMO_PASSWORD" ]; then
-  echo "[start] data demo (akun admin.demo / warga.demo / security.demo)"
+  echo "[start] data demo (akun superadmin.demo / admin.demo / warga.demo / security.demo)"
   npm run --silent seed:demo
 fi
 

@@ -60,6 +60,7 @@ export const PERMISSIONS = {
   "cctv.manage": ["security", "Mengelola data CCTV"],
   "audit_logs.view": ["system", "Melihat Activity Log"],
   "settings.manage": ["system", "Mengelola pengaturan sistem"],
+  "system.access_control": ["system", "Mengunci semua akun & mode lihat saja (kontrol darurat)"],
 } as const satisfies Record<string, readonly [string, string]>;
 
 export type PermissionKey = keyof typeof PERMISSIONS;
@@ -70,6 +71,7 @@ const ADMIN_EXCLUDED: PermissionKey[] = [
   "roles.assign_super_admin",
   "residents.death_backdate",
   "settings.manage",
+  "system.access_control",
   "finance.opening_balance",
 ];
 

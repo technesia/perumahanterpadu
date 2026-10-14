@@ -5,6 +5,7 @@
 //   npm run setup:superadmin
 // atau non-interaktif:
 //   SA_NAME="..." SA_USERNAME="..." SA_EMAIL="..." SA_PASSWORD="..." npm run setup:superadmin
+import "./load-env";
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
 import { PrismaClient } from "@prisma/client";

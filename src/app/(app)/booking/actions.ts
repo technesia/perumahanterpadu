@@ -7,11 +7,11 @@ import {
 } from "@/server/services/facilities";
 
 export async function monthAvailabilityAction(facilityId: string, year: number, month: number) {
-  return withAuth(async (ctx) => ({ ok: true, data: await monthAvailability(ctx, facilityId, year, month) }));
+  return withAuth(async (ctx) => ({ ok: true, data: await monthAvailability(ctx, facilityId, year, month) }), { readOnly: true });
 }
 
 export async function dayAvailabilityAction(facilityId: string, date: string) {
-  return withAuth(async (ctx) => ({ ok: true, data: await dayAvailability(ctx, facilityId, date) }));
+  return withAuth(async (ctx) => ({ ok: true, data: await dayAvailability(ctx, facilityId, date) }), { readOnly: true });
 }
 
 export async function createBookingAction(input: z.input<typeof bookingSchema>) {
