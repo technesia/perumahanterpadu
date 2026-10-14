@@ -141,7 +141,7 @@ CI (GitHub Actions, `.github/workflows/ci.yml`) menjalankan pada setiap push ke 
 typecheck, lint, migration dari database kosong + seed dua kali, seluruh automated test terhadap PostgreSQL 16, dan
 production build.
 
-Test memakai `TEST_DATABASE_URL` sebagai koneksi dasar. Setiap run membuat database sementara
+Test memakai host & kredensial dari `TEST_DATABASE_URL` (database pada URL tersebut tidak harus ada; setup terhubung lewat database bawaan `postgres`). Setiap run membuat database sementara
 `tprm_test_run_<timestamp>`, menerapkan migration dari kosong, menjalankan test, lalu menghapus database
 sementara tersebut. Database development tidak disentuh. User database memerlukan hak `CREATEDB`.
 
