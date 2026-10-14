@@ -25,6 +25,10 @@ model Organization {
   deathRecordMaxYears Int      @default(10)
   holdPendingBookings Boolean  @default(true)
   allowPartialPayment Boolean  @default(false)
+  /// Kontrol darurat Super Admin: kunci semua akun selain Super Admin.
+  accountsLocked      Boolean  @default(false)
+  /// Kontrol darurat Super Admin: mode lihat saja untuk semua selain Super Admin.
+  readOnlyMode        Boolean  @default(false)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 

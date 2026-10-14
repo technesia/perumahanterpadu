@@ -12,7 +12,18 @@ export interface AuthContext {
   primaryRole: RoleKey;
   permissions: ReadonlySet<string>;
   residentId: string | null;
+  /** Kontrol darurat organisasi (diatur Super Admin). */
+  accessControls: { accountsLocked: boolean; readOnlyMode: boolean };
   ip?: string | null;
+}
+
+export const isSuperAdmin = (ctx: Pick<AuthContext, "roles">) => ctx.roles.includes("SUPER_ADMIN");
+
+export const READ_ONLY_MESSAGE = "Aplikasi sedang dalam mode lihat saja. Perubahan data dinonaktifkan sementara oleh Super Admin.";
+
+/** Mode lihat saja: semua perubahan ditolak kecuali oleh Super Admin. */
+export function assertCanWrite(ctx: Pick<AuthContext, "roles" | "accessControls">) {
+  if (ctx.accessControls.readOnlyMode && !isSuperAdmin(ctx)) throw new ForbiddenError(READ_ONLY_MESSAGE);
 }
 
 const ROLE_PRIORITY: RoleKey[] = ["SUPER_ADMIN", "ADMIN", "SECURITY", "MEMBER"];

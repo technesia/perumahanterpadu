@@ -12,12 +12,13 @@ import { cn } from "../ui/cn";
 
 interface Props {
   user: { name: string; roleLabel: string; role: string };
+  controls: { accountsLocked: boolean; readOnlyMode: boolean; superAdmin: boolean };
   permissions: string[];
   logoutAction: () => Promise<void>;
   children: ReactNode;
 }
 
-export function AppShell({ user, permissions, logoutAction, children }: Props) {
+export function AppShell({ user, controls, permissions, logoutAction, children }: Props) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const groups = navFor(user.role, permissions);
@@ -99,8 +100,29 @@ export function AppShell({ user, permissions, logoutAction, children }: Props) {
         </div>
       </header>
 
+      <ControlBanner controls={controls} />
       <main id="konten" tabIndex={-1} className="mx-auto w-full max-w-7xl flex-1 px-4 py-5 sm:px-6 sm:py-6">{children}</main>
       <Footer />
+    </div>
+  );
+}
+
+/** Pemberitahuan kontrol darurat: warga/pengurus melihat mode lihat saja; Super Admin melihat semua kontrol aktif. */
+function ControlBanner({ controls }: { controls: Props["controls"] }) {
+  if (controls.superAdmin) {
+    const active = [controls.accountsLocked && "semua akun lain dinonaktifkan", controls.readOnlyMode && "mode lihat saja"].filter(Boolean);
+    if (!active.length) return null;
+    return (
+      <div role="status" className="border-b border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800 sm:px-6">
+        <strong>Kontrol darurat aktif:</strong> {active.join(" · ")}.{" "}
+        <Link href="/sistem/kontrol" className="font-medium underline">Kelola</Link>
+      </div>
+    );
+  }
+  if (!controls.readOnlyMode) return null;
+  return (
+    <div role="status" className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900 sm:px-6">
+      <strong>Mode lihat saja.</strong> Perubahan data dinonaktifkan sementara oleh Super Admin.
     </div>
   );
 }

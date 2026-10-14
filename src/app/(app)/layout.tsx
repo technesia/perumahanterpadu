@@ -10,6 +10,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <AppShell
       user={{ name: ctx.name, role: ctx.primaryRole, roleLabel: ROLE_LABELS[ctx.primaryRole] }}
+      controls={{ ...ctx.accessControls, superAdmin: ctx.roles.includes("SUPER_ADMIN") }}
       permissions={[...ctx.permissions]}
       logoutAction={logoutAction}
     >

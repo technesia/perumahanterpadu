@@ -35,6 +35,7 @@ Saat start, container otomatis menjalankan migration, seed master data, dan data
 
 | Akun demo | Password | Role |
 |---|---|---|
+| `superadmin.demo` | `DemoWarga12345` | Super Admin (termasuk menu **Kontrol Akses**) |
 | `admin.demo` | `DemoWarga12345` | Admin |
 | `warga.demo` | `DemoWarga12345` | Member (punya tunggakan IPL untuk dicoba) |
 | `security.demo` | `DemoWarga12345` | Security |
@@ -96,8 +97,8 @@ unique keanggotaan rumah aktif, dan trigger yang membuat `audit_logs` append-onl
 DEMO_PASSWORD="PasswordDemoAnda123" npm run seed:demo
 ```
 
-Membuat rumah Blok D, warga berlabel `[DEMO]`, tagihan 8 bulan terakhir, dan akun `admin.demo`, `warga.demo`,
-`security.demo` dengan password dari `DEMO_PASSWORD`. Ditolak bila `NODE_ENV=production`.
+Membuat rumah Blok D, warga berlabel `[DEMO]`, tagihan 8 bulan terakhir, dan akun `superadmin.demo`, `admin.demo`,
+`warga.demo`, `security.demo` dengan password dari `DEMO_PASSWORD`. Ditolak bila `NODE_ENV=production`.
 
 ## Aturan IPL
 
@@ -115,6 +116,19 @@ Membuat rumah Blok D, warga berlabel `[DEMO]`, tagihan 8 bulan terakhir, dan aku
 - Pembayaran parsial dinonaktifkan secara default (`organizations.allowPartialPayment`).
 - **QRIS**: struktur adapter + webhook idempoten sudah ada (`src/server/payments/qris.ts`,
   `/api/payments/qris/webhook`), tetapi **belum ada provider yang terpasang** — opsi QRIS tampil nonaktif.
+
+## Kontrol Akses (Super Admin)
+
+Menu **Sistem → Kontrol Akses** (hanya Super Admin) berisi dua tombol darurat:
+
+- **Nonaktifkan semua akun** — semua akun selain Super Admin langsung dikeluarkan (sesi dicabut) dan tidak dapat
+  masuk. Status aktif/nonaktif masing-masing akun tidak diubah, sehingga mematikan tombol memulihkan akses seperti
+  semula.
+- **Mode lihat saja** — pengguna selain Super Admin tetap dapat masuk dan melihat data, tetapi semua perubahan
+  ditolak di server (setiap server action dianggap mengubah data kecuali ditandai `readOnly`). Banner ditampilkan
+  di semua halaman.
+
+Setiap perubahan meminta konfirmasi dan tercatat di Activity Log.
 
 ## Aturan keuangan
 

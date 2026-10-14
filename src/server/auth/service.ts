@@ -16,6 +16,8 @@ function dummyHash() {
   return dummy;
 }
 
+export const ACCOUNTS_LOCKED_MESSAGE = "Akses aplikasi sedang dinonaktifkan sementara oleh Super Admin. Silakan coba lagi nanti.";
+
 const GENERIC_LOGIN_ERROR = "Email/username atau password salah.";
 
 export function sessionTtlMs(): number {
@@ -75,6 +77,10 @@ export async function authenticate(input: LoginInput) {
     await recordAttempt(keys, false);
     throw new AppError("Akun Anda tidak aktif. Hubungi pengurus.", "INACTIVE");
   }
+  const org = await prisma.organization.findUniqueOrThrow({ where: { id: organizationId }, select: { accountsLocked: true } });
+  if (org.accountsLocked && !user.roles.some((r) => r.role.key === "SUPER_ADMIN")) {
+    throw new AppError(ACCOUNTS_LOCKED_MESSAGE, "ACCOUNTS_LOCKED");
+  }
 
   const token = generateToken();
   const session = await prisma.userSession.create({
@@ -121,6 +127,12 @@ export async function loadSession(token: string | undefined | null): Promise<Aut
   if (!user.isActive || user.organizationId !== organizationId) return null;
 
   const roles = user.roles.filter((r) => r.organizationId === organizationId).map((r) => r.role.key as RoleKey);
+  const org = await prisma.organization.findUniqueOrThrow({
+    where: { id: organizationId },
+    select: { accountsLocked: true, readOnlyMode: true },
+  });
+  // Kunci semua akun: sesi selain Super Admin langsung tidak berlaku.
+  if (org.accountsLocked && !roles.includes("SUPER_ADMIN")) return null;
   const permissions = new Set<string>();
   for (const ur of user.roles) {
     if (ur.organizationId !== organizationId) continue;
@@ -143,6 +155,7 @@ export async function loadSession(token: string | undefined | null): Promise<Aut
     primaryRole: pickPrimaryRole(roles),
     permissions,
     residentId: user.resident?.id ?? null,
+    accessControls: { accountsLocked: org.accountsLocked, readOnlyMode: org.readOnlyMode },
   };
 }
 

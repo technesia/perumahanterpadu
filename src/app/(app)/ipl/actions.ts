@@ -39,7 +39,7 @@ export async function payableBillsAction(unitId: string) {
       }));
     const pending = items.filter((b) => b.displayStatus === "PENDING").map((b) => periodLabel(b.periodYear, b.periodMonth));
     return { ok: true, data: { payable, pending } };
-  });
+  }, { readOnly: true });
 }
 
 export async function submitPaymentAction(fd: FormData) {

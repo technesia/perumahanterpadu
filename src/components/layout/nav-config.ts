@@ -2,7 +2,7 @@ import {
   Activity, BadgeDollarSign, Bell, BookUser, Building2, CalendarCheck, CalendarDays, Camera, ClipboardList,
   FileText, HandCoins, HeartPulse, Home, KeyRound, LayoutDashboard, Megaphone, NotebookPen, PhoneCall,
   Receipt, ScrollText, Settings, ShieldAlert, ShieldCheck, Store, TrendingDown, TrendingUp, UserCircle,
-  Users, Wallet, type LucideIcon,
+  Power, Users, Wallet, type LucideIcon,
 } from "lucide-react";
 
 export interface NavItem { label: string; href: string; icon: LucideIcon; perms?: string[] }
@@ -46,6 +46,7 @@ const ADMIN_NAV: NavGroup[] = [
     { label: "Role dan Permission", href: "/sistem/role", icon: ShieldCheck, perms: ["roles.view"] },
     { label: "Activity Log", href: "/sistem/log", icon: Activity, perms: ["audit_logs.view"] },
     { label: "Pengaturan", href: "/sistem/pengaturan", icon: Settings, perms: ["settings.manage"] },
+    { label: "Kontrol Akses", href: "/sistem/kontrol", icon: Power, perms: ["system.access_control"] },
     { label: "Profil Saya", href: "/profil", icon: UserCircle },
   ] },
 ];
