@@ -20,6 +20,36 @@ Dokumen penting:
 - **[docs/STATUS.md](docs/STATUS.md)** — fitur selesai, integrasi yang belum aktif, dan checklist acceptance test #1–#54.
 - **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** — deployment production, reverse proxy, backup & restore, pembaruan.
 
+## Coba cepat dengan Docker (lokal)
+
+Cara termudah mencoba aplikasi di komputer sendiri — hanya perlu [Docker Desktop](https://www.docker.com/products/docker-desktop/):
+
+```bash
+git clone https://github.com/technesia/perumahanterpadu.git
+cd perumahanterpadu
+docker compose up --build
+```
+
+Tunggu sampai log menampilkan `aplikasi siap di http://localhost:3000`, lalu buka **http://localhost:3000**.
+Saat start, container otomatis menjalankan migration, seed master data, dan data demo.
+
+| Akun demo | Password | Role |
+|---|---|---|
+| `admin.demo` | `DemoWarga12345` | Admin |
+| `warga.demo` | `DemoWarga12345` | Member (punya tunggakan IPL untuk dicoba) |
+| `security.demo` | `DemoWarga12345` | Security |
+
+Opsi:
+
+- Port lain: `APP_PORT=8080 docker compose up --build`
+- Super Admin sendiri: `SA_USERNAME=pengurus SA_PASSWORD=PasswordKuat123 docker compose up --build`
+- Tanpa data demo: `DEMO_PASSWORD= docker compose up --build`
+- Berhenti: `docker compose down` (data tetap tersimpan) · hapus semua data: `docker compose down -v`
+
+Setup Docker ini **khusus untuk mencoba di komputer lokal**: kunci rahasianya publik dan aplikasi berjalan lewat
+HTTP (`LOCAL_HTTP=true` mematikan HSTS dan cookie `Secure`). Untuk server production ikuti
+[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
 ## Instalasi (development)
 
 Prasyarat: Node.js 20+ dan PostgreSQL 14+ (dengan ekstensi `btree_gist`, tersedia di paket standar PostgreSQL).
