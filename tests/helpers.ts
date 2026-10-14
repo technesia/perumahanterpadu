@@ -48,3 +48,29 @@ export async function contextFor(userId: string): Promise<AuthContext> {
   if (!ctx) throw new Error("Gagal membuat sesi test");
   return ctx;
 }
+
+/** PNG 1x1 valid untuk test upload. */
+export const PNG_1PX = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+  "base64",
+);
+
+export async function orgId() {
+  return (await prisma.organization.findUniqueOrThrow({ where: { slug: "taman-pesona-rajeg-mulya" } })).id;
+}
+
+/** Membuat rumah + warga kepala keluarga (langsung via DB, tanpa RBAC). */
+export async function makeHousehold(opts: { withAccount?: boolean } = {}) {
+  const organizationId = await orgId();
+  const unit = await prisma.residentialUnit.create({
+    data: { organizationId, houseNumber: uniq("H").toUpperCase(), address: "Jl. Pesona Raya" },
+  });
+  const resident = await prisma.resident.create({
+    data: { organizationId, code: uniq("W"), fullName: `Warga ${unit.houseNumber}`, phone: "081234567890" },
+  });
+  await prisma.residentUnitMembership.create({
+    data: { organizationId, residentId: resident.id, unitId: unit.id, relation: "HEAD", startDate: new Date("2020-01-01") },
+  });
+  const member = opts.withAccount ? await makeUser("MEMBER", { residentId: resident.id }) : null;
+  return { unit, resident, member: member ? { user: member.user, ctx: await contextFor(member.user.id) } : null };
+}

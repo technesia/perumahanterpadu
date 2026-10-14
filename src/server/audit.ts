@@ -1,6 +1,5 @@
 import type { Prisma } from "@prisma/client";
 import { prisma, type Tx } from "./db";
-import type { AuthContext } from "./auth/context";
 
 const SENSITIVE_KEY = /pass(word)?|token|secret|hash|nik|idnumber|accessurl/i;
 
@@ -29,7 +28,7 @@ export interface AuditInput {
 
 /** Audit log append-only; tidak ada fungsi update/delete di codebase. */
 export async function writeAudit(
-  actor: Pick<AuthContext, "organizationId" | "userId" | "name" | "primaryRole"> & { ip?: string | null },
+  actor: { organizationId: string; userId: string | null; name: string; primaryRole: string; ip?: string | null },
   input: AuditInput,
   tx: Tx = prisma,
 ) {

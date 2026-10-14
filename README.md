@@ -9,8 +9,8 @@ Stack: Next.js 15 (App Router) + TypeScript · Tailwind CSS · PostgreSQL 16 + P
 | Phase | Cakupan | Status |
 |---|---|---|
 | 1 — Foundation | Skema database lengkap, migration, seed, autentikasi, RBAC, organization context, setup Super Admin, design system | ✅ Selesai |
-| 2 — Core Management | Dashboard, warga, rumah, akun, IPL, pembayaran, verifikasi, tunggakan | ⏳ Berikutnya |
-| 3 — Finance & Administration | Keuangan masuk/keluar, saldo kas, pengajuan surat, Activity Log | ⏳ |
+| 2 — Core Management | Dashboard per role, warga, rumah, akun, IPL, pembayaran & bukti transfer, verifikasi, tunggakan | ✅ Selesai |
+| 3 — Finance & Administration | Keuangan masuk/keluar, saldo kas, pengajuan surat, Activity Log | ⏳ Berikutnya |
 | 4 — Community | Pengumuman, kegiatan, fasilitas, booking, notifikasi, UMKM, Posyandu | ⏳ |
 | 5 — Security | Buku tamu, laporan kejadian, CCTV, kontak darurat | ⏳ |
 | 6 — QA | Pengujian menyeluruh, dokumentasi deployment, backup/restore | ⏳ |
@@ -54,6 +54,32 @@ Super Admin (mereset password / mengaktifkan kembali akun). Setiap eksekusi terc
 Constraint penting yang ditambahkan manual pada migration awal:
 `facility_bookings_no_overlap` (exclusion constraint anti booking bentrok), CHECK nominal tidak negatif,
 unique keanggotaan rumah aktif, dan trigger yang membuat `audit_logs` append-only.
+
+## Data demo (opsional, bukan production)
+
+```bash
+DEMO_PASSWORD="PasswordDemoAnda123" npm run seed:demo
+```
+
+Membuat rumah Blok D, warga berlabel `[DEMO]`, tagihan 8 bulan terakhir, dan akun `admin.demo`, `warga.demo`,
+`security.demo` dengan password dari `DEMO_PASSWORD`. Ditolak bila `NODE_ENV=production`.
+
+## Aturan IPL
+
+- Tagihan diterbitkan per **rumah**, per **jenis iuran**, per **periode bulanan**; unique constraint mencegah tagihan ganda
+  (penerbitan ulang aman — yang sudah ada dilewati).
+- **Jendela pelacakan** default 60 bulan berakhir di bulan berjalan (Okt 2026 → Nov 2021 s.d. Okt 2026), diatur
+  `organizations.arrearsWindowMonths`.
+- **Tunggakan** = tagihan Belum Bayar/Parsial yang tanggal jatuh temponya **sudah lewat**. Belum ditagihkan, belum jatuh
+  tempo, dan yang sedang Menunggu Verifikasi tidak dihitung tunggakan.
+- Satu pembayaran dapat mencakup beberapa periode (`ipl_payment_allocations`). Periode yang sedang menunggu verifikasi
+  atau sudah lunas tidak dapat diajukan lagi (dikunci `SELECT … FOR UPDATE`).
+- Transfer bank **wajib** bukti (JPG/PNG/PDF, divalidasi dari isi berkas). Pengajuan selalu **Menunggu Verifikasi**.
+- Persetujuan Admin (dalam satu transaksi DB): periode → Lunas/Parsial, catat pemasukan kas `IPL_PAYMENT` tepat satu
+  kali (unique `iplPaymentId`), notifikasi warga, audit log. Penolakan wajib beralasan dan tidak mengubah tagihan.
+- Pembayaran parsial dinonaktifkan secara default (`organizations.allowPartialPayment`).
+- **QRIS**: struktur adapter + webhook idempoten sudah ada (`src/server/payments/qris.ts`,
+  `/api/payments/qris/webhook`), tetapi **belum ada provider yang terpasang** — opsi QRIS tampil nonaktif.
 
 ## Testing
 
