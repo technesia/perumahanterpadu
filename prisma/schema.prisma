@@ -1,0 +1,998 @@
+// Skema database Taman Pesona Rajeg Mulya.
+// Setiap record bisnis membawa organizationId sebagai fondasi multi-tenant.
+// Nominal uang disimpan dalam Rupiah utuh (Int) — tidak ada floating-point.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ───────────────────────── Organisasi & Akses ─────────────────────────
+
+model Organization {
+  id                  String   @id @default(cuid())
+  slug                String   @unique
+  name                String
+  rt                  String?
+  rw                  String?
+  village             String?
+  regency             String?
+  arrearsWindowMonths Int      @default(60)
+  deathRecordMaxYears Int      @default(10)
+  holdPendingBookings Boolean  @default(true)
+  allowPartialPayment Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  users                  User[]
+  userRoles              UserRole[]
+  auditLogs              AuditLog[]
+  residents              Resident[]
+  units                  ResidentialUnit[]
+  memberships            ResidentUnitMembership[]
+  iplTypes               IplType[]
+  iplBills               IplBill[]
+  iplPayments            IplPayment[]
+  financeCategories      FinanceCategory[]
+  financeTransactions    FinanceTransaction[]
+  openingBalances        OpeningBalance[]
+  adminRequestTypes      AdministrativeRequestType[]
+  adminRequests          AdministrativeRequest[]
+  announcements          Announcement[]
+  activities             Activity[]
+  facilities             Facility[]
+  facilityBookings       FacilityBooking[]
+  notifications          Notification[]
+  visitorLogs            VisitorLog[]
+  securityIncidents      SecurityIncident[]
+  cctvCameras            CctvCamera[]
+  businesses             ResidentBusiness[]
+  posyanduActivities     PosyanduActivity[]
+  storedFiles            StoredFile[]
+  counters               Counter[]
+
+  @@map("organizations")
+}
+
+model User {
+  id               String    @id @default(cuid())
+  organizationId   String
+  email            String?
+  username         String
+  name             String
+  phone            String?
+  passwordHash     String
+  isActive         Boolean   @default(true)
+  failedLoginCount Int       @default(0)
+  lockedUntil      DateTime?
+  lastLoginAt      DateTime?
+  createdById      String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  organization Organization  @relation(fields: [organizationId], references: [id])
+  roles        UserRole[]
+  sessions     UserSession[]
+  resident     Resident?     @relation("ResidentAccount")
+  notifications Notification[]
+
+  @@unique([organizationId, username])
+  @@unique([organizationId, email])
+  @@map("users")
+}
+
+/// Role sistem bersifat global (SUPER_ADMIN, ADMIN, MEMBER, SECURITY).
+model Role {
+  id          String           @id @default(cuid())
+  key         String           @unique
+  name        String
+  description String?
+  permissions RolePermission[]
+  users       UserRole[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String           @id @default(cuid())
+  key         String           @unique
+  module      String
+  description String
+  roles       RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model UserRole {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String
+  roleId         String
+  assignedById   String?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role         Role         @relation(fields: [roleId], references: [id])
+
+  @@unique([userId, roleId])
+  @@index([organizationId, roleId])
+  @@map("user_roles")
+}
+
+model UserSession {
+  id         String    @id @default(cuid())
+  userId     String
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime  @default(now())
+  lastSeenAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("user_sessions")
+}
+
+/// Jejak percobaan login untuk rate limiting & proteksi brute force.
+model LoginAttempt {
+  id        String   @id @default(cuid())
+  key       String
+  success   Boolean
+  createdAt DateTime @default(now())
+
+  @@index([key, createdAt])
+  @@map("login_attempts")
+}
+
+/// Audit log append-only. Tidak ada UI/endpoint untuk ubah/hapus.
+model AuditLog {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String?
+  userName       String?
+  userRole       String?
+  action         String
+  module         String
+  entityType     String?
+  entityId       String?
+  summary        String
+  metadata       Json?
+  status         String   @default("SUCCESS")
+  ipAddress      String?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId, createdAt])
+  @@index([organizationId, module])
+  @@index([entityType, entityId])
+  @@map("audit_logs")
+}
+
+/// Penomoran dokumen berurutan per organisasi/kunci/tahun (mis. IPL-2026-000001).
+model Counter {
+  organizationId String
+  key            String
+  year           Int
+  value          Int    @default(0)
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@id([organizationId, key, year])
+  @@map("counters")
+}
+
+/// Berkas privat (bukti transfer, dokumen warga, nota). Akses selalu lewat entitas pemilik.
+model StoredFile {
+  id             String   @id @default(cuid())
+  organizationId String
+  storageKey     String   @unique
+  originalName   String
+  mimeType       String
+  size           Int
+  sha256         String
+  purpose        String
+  uploadedById   String?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  iplProofs    IplPaymentProof[]
+  requestDocs  AdministrativeRequestDocument[]
+  incidentDocs SecurityIncidentAttachment[]
+
+  @@map("stored_files")
+}
+
+// ───────────────────────── Warga & Rumah ─────────────────────────
+
+enum ResidentStatus {
+  ACTIVE
+  NEWCOMER
+  MOVED
+  DECEASED
+}
+
+enum OccupancyStatus {
+  PERMANENT
+  TEMPORARY
+  VACANT
+}
+
+model Resident {
+  id               String          @id @default(cuid())
+  organizationId   String
+  code             String
+  fullName         String
+  nik              String?
+  phone            String?
+  email            String?
+  status           ResidentStatus  @default(ACTIVE)
+  occupancyStatus  OccupancyStatus @default(PERMANENT)
+  moveInDate       DateTime?       @db.Date
+  recordedAt       DateTime        @default(now())
+  deathDate        DateTime?       @db.Date
+  deathRecordedAt  DateTime?
+  deathRecordedById String?
+  internalNotes    String?
+  userId           String?         @unique
+  archivedAt       DateTime?
+  archivedById     String?
+  createdById      String?
+  updatedById      String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  organization Organization             @relation(fields: [organizationId], references: [id])
+  user         User?                    @relation("ResidentAccount", fields: [userId], references: [id])
+  memberships  ResidentUnitMembership[]
+  ownedUnits   ResidentialUnit[]        @relation("UnitOwner")
+  histories    ResidentHistory[]
+  iplBills     IplBill[]
+  iplPayments  IplPayment[]
+  requests     AdministrativeRequest[]
+  bookings     FacilityBooking[]
+  businesses   ResidentBusiness[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId, status])
+  @@index([organizationId, occupancyStatus])
+  @@index([organizationId, fullName])
+  @@index([organizationId, phone])
+  @@map("residents")
+}
+
+model ResidentHistory {
+  id          String   @id @default(cuid())
+  residentId  String
+  action      String
+  changes     Json
+  note        String?
+  actorId     String?
+  createdAt   DateTime @default(now())
+
+  resident Resident @relation(fields: [residentId], references: [id])
+
+  @@index([residentId, createdAt])
+  @@map("resident_histories")
+}
+
+model ResidentialUnit {
+  id              String          @id @default(cuid())
+  organizationId  String
+  houseNumber     String
+  block           String?
+  address         String
+  occupancyStatus OccupancyStatus @default(PERMANENT)
+  ownerResidentId String?
+  notes           String?
+  isActive        Boolean         @default(true)
+  createdById     String?
+  updatedById     String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  organization Organization             @relation(fields: [organizationId], references: [id])
+  owner        Resident?                @relation("UnitOwner", fields: [ownerResidentId], references: [id])
+  memberships  ResidentUnitMembership[]
+  iplBills     IplBill[]
+  iplPayments  IplPayment[]
+  requests     AdministrativeRequest[]
+  visitors     VisitorLog[]
+
+  @@unique([organizationId, houseNumber])
+  @@map("residential_units")
+}
+
+enum MembershipRelation {
+  HEAD
+  FAMILY
+  TENANT
+}
+
+model ResidentUnitMembership {
+  id             String             @id @default(cuid())
+  organizationId String
+  residentId     String
+  unitId         String
+  relation       MembershipRelation @default(HEAD)
+  startDate      DateTime           @db.Date
+  endDate        DateTime?          @db.Date
+  createdById    String?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  organization Organization    @relation(fields: [organizationId], references: [id])
+  resident     Resident        @relation(fields: [residentId], references: [id])
+  unit         ResidentialUnit @relation(fields: [unitId], references: [id])
+
+  @@index([organizationId, unitId, endDate])
+  @@index([residentId, endDate])
+  @@map("resident_unit_memberships")
+}
+
+// ───────────────────────── IPL ─────────────────────────
+
+model IplType {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  amount         Int
+  dueDay         Int      @default(10)
+  isActive       Boolean  @default(true)
+  description    String?
+  createdById    String?
+  updatedById    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  bills        IplBill[]
+
+  @@unique([organizationId, name])
+  @@map("ipl_types")
+}
+
+enum IplBillStatus {
+  UNPAID
+  PARTIAL
+  PAID
+  VOID
+}
+
+/// Tagihan per rumah, per jenis IPL, per periode bulanan. Tidak boleh ganda.
+model IplBill {
+  id             String        @id @default(cuid())
+  organizationId String
+  unitId         String
+  residentId     String?
+  iplTypeId      String
+  periodYear     Int
+  periodMonth    Int
+  amount         Int
+  paidAmount     Int           @default(0)
+  status         IplBillStatus @default(UNPAID)
+  dueDate        DateTime      @db.Date
+  paidAt         DateTime?
+  createdById    String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  organization Organization            @relation(fields: [organizationId], references: [id])
+  unit         ResidentialUnit         @relation(fields: [unitId], references: [id])
+  resident     Resident?               @relation(fields: [residentId], references: [id])
+  iplType      IplType                 @relation(fields: [iplTypeId], references: [id])
+  allocations  IplPaymentAllocation[]
+
+  @@unique([organizationId, unitId, iplTypeId, periodYear, periodMonth])
+  @@index([organizationId, status, dueDate])
+  @@index([organizationId, periodYear, periodMonth])
+  @@map("ipl_bills")
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  QRIS
+}
+
+enum IplPaymentStatus {
+  PENDING_VERIFICATION
+  AWAITING_PROVIDER
+  APPROVED
+  REJECTED
+  CANCELLED
+  FAILED
+}
+
+model IplPayment {
+  id                    String           @id @default(cuid())
+  organizationId        String
+  number                String
+  unitId                String
+  residentId            String
+  submittedById         String
+  method                PaymentMethod
+  totalAmount           Int
+  status                IplPaymentStatus @default(PENDING_VERIFICATION)
+  notes                 String?
+  rejectionReason       String?
+  paidAt                DateTime?
+  verifiedAt            DateTime?
+  verifiedById          String?
+  providerName          String?
+  providerTransactionId String?
+  idempotencyKey        String?
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+
+  organization       Organization           @relation(fields: [organizationId], references: [id])
+  unit               ResidentialUnit        @relation(fields: [unitId], references: [id])
+  resident           Resident               @relation(fields: [residentId], references: [id])
+  allocations        IplPaymentAllocation[]
+  proofs             IplPaymentProof[]
+  histories          IplPaymentHistory[]
+  financeTransaction FinanceTransaction?
+
+  @@unique([organizationId, number])
+  @@unique([providerName, providerTransactionId])
+  @@unique([organizationId, idempotencyKey])
+  @@index([organizationId, status])
+  @@index([residentId])
+  @@map("ipl_payments")
+}
+
+model IplPaymentAllocation {
+  id        String @id @default(cuid())
+  paymentId String
+  billId    String
+  amount    Int
+
+  payment IplPayment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  bill    IplBill    @relation(fields: [billId], references: [id])
+
+  @@unique([paymentId, billId])
+  @@index([billId])
+  @@map("ipl_payment_allocations")
+}
+
+model IplPaymentProof {
+  id        String   @id @default(cuid())
+  paymentId String
+  fileId    String
+  createdAt DateTime @default(now())
+
+  payment IplPayment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  file    StoredFile @relation(fields: [fileId], references: [id])
+
+  @@map("ipl_payment_proofs")
+}
+
+model IplPaymentHistory {
+  id         String            @id @default(cuid())
+  paymentId  String
+  fromStatus IplPaymentStatus?
+  toStatus   IplPaymentStatus
+  note       String?
+  actorId    String?
+  createdAt  DateTime          @default(now())
+
+  payment IplPayment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@index([paymentId])
+  @@map("ipl_payment_histories")
+}
+
+// ───────────────────────── Keuangan ─────────────────────────
+
+enum FinanceType {
+  INCOME
+  EXPENSE
+}
+
+enum FinanceSource {
+  MANUAL
+  IPL_PAYMENT
+}
+
+enum FinanceStatus {
+  POSTED
+  VOID
+}
+
+model FinanceCategory {
+  id             String      @id @default(cuid())
+  organizationId String
+  type           FinanceType
+  code           String
+  name           String
+  isSystem       Boolean     @default(false)
+  isActive       Boolean     @default(true)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  organization Organization         @relation(fields: [organizationId], references: [id])
+  transactions FinanceTransaction[]
+
+  @@unique([organizationId, code])
+  @@map("finance_categories")
+}
+
+model FinanceTransaction {
+  id               String         @id @default(cuid())
+  organizationId   String
+  number           String
+  type             FinanceType
+  source           FinanceSource  @default(MANUAL)
+  categoryId       String
+  date             DateTime       @db.Date
+  description      String
+  amount           Int
+  method           PaymentMethod?
+  reference        String?
+  counterparty     String?
+  notes            String?
+  status           FinanceStatus  @default(POSTED)
+  voidReason       String?
+  voidedAt         DateTime?
+  voidedById       String?
+  iplPaymentId     String?        @unique
+  attachmentFileId String?
+  createdById      String?
+  updatedById      String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  organization Organization                @relation(fields: [organizationId], references: [id])
+  category     FinanceCategory             @relation(fields: [categoryId], references: [id])
+  iplPayment   IplPayment?                 @relation(fields: [iplPaymentId], references: [id])
+  histories    FinanceTransactionHistory[]
+
+  @@unique([organizationId, number])
+  @@index([organizationId, type, date])
+  @@index([organizationId, status])
+  @@map("finance_transactions")
+}
+
+model FinanceTransactionHistory {
+  id            String   @id @default(cuid())
+  transactionId String
+  action        String
+  before        Json?
+  after         Json?
+  reason        String?
+  actorId       String?
+  createdAt     DateTime @default(now())
+
+  transaction FinanceTransaction @relation(fields: [transactionId], references: [id])
+
+  @@index([transactionId])
+  @@map("finance_transaction_histories")
+}
+
+/// Saldo awal kas. Riwayat dipertahankan; yang berlaku adalah record terbaru.
+model OpeningBalance {
+  id             String   @id @default(cuid())
+  organizationId String
+  amount         Int
+  effectiveDate  DateTime @db.Date
+  note           String?
+  setById        String?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId, createdAt])
+  @@map("opening_balances")
+}
+
+// ───────────────────────── Administrasi ─────────────────────────
+
+model AdministrativeRequestType {
+  id             String   @id @default(cuid())
+  organizationId String
+  code           String
+  name           String
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  organization Organization            @relation(fields: [organizationId], references: [id])
+  requests     AdministrativeRequest[]
+
+  @@unique([organizationId, code])
+  @@map("administrative_request_types")
+}
+
+enum AdminRequestStatus {
+  SUBMITTED
+  PROCESSING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+model AdministrativeRequest {
+  id              String             @id @default(cuid())
+  organizationId  String
+  number          String
+  typeId          String
+  residentId      String
+  unitId          String?
+  requesterUserId String
+  purpose         String
+  contactPhone    String?
+  status          AdminRequestStatus @default(SUBMITTED)
+  applicantNotes  String?
+  internalNotes   String?
+  decidedAt       DateTime?
+  decidedById     String?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  organization Organization                    @relation(fields: [organizationId], references: [id])
+  type         AdministrativeRequestType       @relation(fields: [typeId], references: [id])
+  resident     Resident                        @relation(fields: [residentId], references: [id])
+  unit         ResidentialUnit?                @relation(fields: [unitId], references: [id])
+  documents    AdministrativeRequestDocument[]
+  histories    AdministrativeRequestHistory[]
+
+  @@unique([organizationId, number])
+  @@index([organizationId, status])
+  @@index([residentId])
+  @@map("administrative_requests")
+}
+
+model AdministrativeRequestDocument {
+  id        String   @id @default(cuid())
+  requestId String
+  fileId    String
+  createdAt DateTime @default(now())
+
+  request AdministrativeRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  file    StoredFile            @relation(fields: [fileId], references: [id])
+
+  @@map("administrative_request_documents")
+}
+
+model AdministrativeRequestHistory {
+  id         String              @id @default(cuid())
+  requestId  String
+  fromStatus AdminRequestStatus?
+  toStatus   AdminRequestStatus
+  note       String?
+  actorId    String?
+  createdAt  DateTime            @default(now())
+
+  request AdministrativeRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([requestId])
+  @@map("administrative_request_histories")
+}
+
+// ───────────────────────── Pengumuman & Kegiatan ─────────────────────────
+
+enum AnnouncementAudience {
+  ALL
+  RESIDENTS
+  SECURITY
+  INTERNAL
+}
+
+enum PublishStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model Announcement {
+  id               String               @id @default(cuid())
+  organizationId   String
+  title            String
+  body             String
+  category         String
+  audience         AnnouncementAudience @default(ALL)
+  status           PublishStatus        @default(DRAFT)
+  isPriority       Boolean              @default(false)
+  publishedAt      DateTime?
+  attachmentFileId String?
+  createdById      String?
+  updatedById      String?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId, status, publishedAt])
+  @@map("announcements")
+}
+
+enum ActivityStatus {
+  PLANNED
+  ONGOING
+  DONE
+  CANCELLED
+}
+
+model Activity {
+  id               String         @id @default(cuid())
+  organizationId   String
+  name             String
+  description      String?
+  category         String
+  startAt          DateTime
+  endAt            DateTime?
+  location         String
+  personInCharge   String?
+  status           ActivityStatus @default(PLANNED)
+  attachmentFileId String?
+  createdById      String?
+  updatedById      String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId, startAt])
+  @@map("activities")
+}
+
+// ───────────────────────── Fasilitas & Booking ─────────────────────────
+
+model Facility {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  description    String?
+  location       String?
+  capacity       Int?
+  rules          String?
+  fee            Int      @default(0)
+  openTime       String   @default("08:00")
+  closeTime      String   @default("22:00")
+  slotMinutes    Int      @default(60)
+  isActive       Boolean  @default(true)
+  photoFileId    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization      @relation(fields: [organizationId], references: [id])
+  bookings     FacilityBooking[]
+
+  @@unique([organizationId, name])
+  @@map("facilities")
+}
+
+enum BookingStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+/// Konflik jadwal dicegah juga di level database lewat exclusion constraint
+/// (lihat migration: facility_bookings_no_overlap).
+model FacilityBooking {
+  id              String        @id @default(cuid())
+  organizationId  String
+  number          String
+  facilityId      String
+  residentId      String
+  requesterUserId String
+  startAt         DateTime
+  endAt           DateTime
+  purpose         String
+  participants    Int?
+  notes           String?
+  status          BookingStatus @default(PENDING)
+  adminNotes      String?
+  decidedAt       DateTime?
+  decidedById     String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  organization Organization             @relation(fields: [organizationId], references: [id])
+  facility     Facility                 @relation(fields: [facilityId], references: [id])
+  resident     Resident                 @relation(fields: [residentId], references: [id])
+  histories    FacilityBookingHistory[]
+
+  @@unique([organizationId, number])
+  @@index([organizationId, facilityId, startAt])
+  @@index([organizationId, status])
+  @@map("facility_bookings")
+}
+
+model FacilityBookingHistory {
+  id         String         @id @default(cuid())
+  bookingId  String
+  fromStatus BookingStatus?
+  toStatus   BookingStatus
+  note       String?
+  actorId    String?
+  createdAt  DateTime       @default(now())
+
+  booking FacilityBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+  @@map("facility_booking_histories")
+}
+
+model Notification {
+  id             String    @id @default(cuid())
+  organizationId String
+  userId         String
+  type           String
+  title          String
+  body           String?
+  link           String?
+  readAt         DateTime?
+  createdAt      DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt, createdAt])
+  @@map("notifications")
+}
+
+// ───────────────────────── Keamanan ─────────────────────────
+
+model VisitorLog {
+  id             String    @id @default(cuid())
+  organizationId String
+  number         String
+  visitorName    String
+  idNumber       String?
+  phone          String?
+  purpose        String
+  unitId         String?
+  hostName       String?
+  vehiclePlate   String?
+  checkInAt      DateTime  @default(now())
+  checkOutAt     DateTime?
+  checkInById    String
+  checkOutById   String?
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization     @relation(fields: [organizationId], references: [id])
+  unit         ResidentialUnit? @relation(fields: [unitId], references: [id])
+
+  @@unique([organizationId, number])
+  @@index([organizationId, checkInAt])
+  @@index([organizationId, checkOutAt])
+  @@map("visitor_logs")
+}
+
+enum IncidentStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+model SecurityIncident {
+  id              String         @id @default(cuid())
+  organizationId  String
+  number          String
+  type            String
+  occurredAt      DateTime
+  location        String
+  description     String
+  reporterId      String
+  status          IncidentStatus @default(OPEN)
+  managementNotes String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  organization Organization                 @relation(fields: [organizationId], references: [id])
+  attachments  SecurityIncidentAttachment[]
+
+  @@unique([organizationId, number])
+  @@index([organizationId, occurredAt])
+  @@map("security_incidents")
+}
+
+model SecurityIncidentAttachment {
+  id         String   @id @default(cuid())
+  incidentId String
+  fileId     String
+  createdAt  DateTime @default(now())
+
+  incident SecurityIncident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  file     StoredFile       @relation(fields: [fileId], references: [id])
+
+  @@map("security_incident_attachments")
+}
+
+enum CameraStatus {
+  ONLINE
+  OFFLINE
+  MAINTENANCE
+  UNKNOWN
+}
+
+/// accessUrl hanya dibaca server; frontend mengakses lewat endpoint redirect berizin.
+model CctvCamera {
+  id             String       @id @default(cuid())
+  organizationId String
+  name           String
+  location       String
+  description    String?
+  status         CameraStatus @default(UNKNOWN)
+  accessUrl      String?
+  internalNotes  String?
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@unique([organizationId, name])
+  @@map("cctv_cameras")
+}
+
+// ───────────────────────── Komunitas ─────────────────────────
+
+model ResidentBusiness {
+  id              String        @id @default(cuid())
+  organizationId  String
+  name            String
+  ownerResidentId String?
+  ownerName       String
+  category        String
+  description     String?
+  contact         String?
+  address         String?
+  showAddress     Boolean       @default(false)
+  ownerConsent    Boolean       @default(false)
+  openingHours    String?
+  logoFileId      String?
+  status          PublishStatus @default(DRAFT)
+  createdById     String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  owner        Resident?    @relation(fields: [ownerResidentId], references: [id])
+
+  @@index([organizationId, status])
+  @@map("resident_businesses")
+}
+
+model PosyanduActivity {
+  id             String    @id @default(cuid())
+  organizationId String
+  name           String
+  startAt        DateTime
+  endAt          DateTime?
+  location       String
+  officer        String?
+  description    String?
+  notes          String?
+  createdById    String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId, startAt])
+  @@map("posyandu_activities")
+}
