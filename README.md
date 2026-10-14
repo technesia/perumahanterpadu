@@ -11,8 +11,8 @@ Stack: Next.js 15 (App Router) + TypeScript · Tailwind CSS · PostgreSQL 16 + P
 | 1 — Foundation | Skema database lengkap, migration, seed, autentikasi, RBAC, organization context, setup Super Admin, design system | ✅ Selesai |
 | 2 — Core Management | Dashboard per role, warga, rumah, akun, IPL, pembayaran & bukti transfer, verifikasi, tunggakan | ✅ Selesai |
 | 3 — Finance & Administration | Keuangan masuk/keluar, saldo kas, rekap, pengajuan surat, Activity Log realtime, pengaturan, matriks role | ✅ Selesai |
-| 4 — Community | Pengumuman, kegiatan, fasilitas, booking, notifikasi, UMKM, Posyandu | ⏳ Berikutnya |
-| 5 — Security | Buku tamu, laporan kejadian, CCTV, kontak darurat | ⏳ |
+| 4 — Community | Pengumuman, kegiatan, fasilitas, booking kalender, notifikasi, UMKM, Posyandu | ✅ Selesai |
+| 5 — Security | Buku tamu, laporan kejadian, CCTV, kontak darurat | ⏳ Berikutnya |
 | 6 — QA | Pengujian menyeluruh, dokumentasi deployment, backup/restore | ⏳ |
 
 ## Instalasi (development)
@@ -91,6 +91,20 @@ Membuat rumah Blok D, warga berlabel `[DEMO]`, tagihan 8 bulan terakhir, dan aku
   `finance_transaction_histories` dan audit log. Pembatalan menandai transaksi *Dibatalkan* (tidak dihapus) dan
   mengeluarkannya dari saldo.
 - Pengeluaran hanya mengurangi saldo kas — tidak pernah mengubah status IPL warga.
+
+## Aturan booking gedung
+
+- Slot mengikuti jam operasional dan durasi slot fasilitas; satu hari hanya ditandai **Tidak Tersedia** bila semua
+  slotnya terisi.
+- Dua booking **konflik** bila fasilitasnya sama dan rentang waktunya tumpang tindih (`[mulai, selesai)` — booking
+  bersebelahan diperbolehkan).
+- Pengecekan konflik di backend dalam transaksi dengan **advisory lock per fasilitas**; database juga memasang
+  **exclusion constraint** sehingga dua booking *Disetujui* tidak mungkin bertabrakan.
+- Slot *Menunggu Review* ditahan bila `holdPendingBookings` aktif (default). Bila dinonaktifkan, beberapa pengajuan
+  boleh masuk dan saat satu disetujui, pengajuan lain yang bertabrakan **ditolak otomatis**.
+- Kalender untuk warga hanya menampilkan status slot — nama pemesan hanya terlihat pengurus; nomor HP dan alamat
+  warga lain tidak pernah dikirim.
+- Notifikasi (belum/sudah dibaca) untuk booking baru, disetujui, ditolak, dan dibatalkan; klik membuka detail.
 
 ## Activity Log realtime
 

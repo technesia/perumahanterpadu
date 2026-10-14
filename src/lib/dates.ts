@@ -45,3 +45,9 @@ export function addYears(d: Date, years: number): Date {
   r.setUTCFullYear(r.getUTCFullYear() + years);
   return r;
 }
+
+/** Nilai untuk <input type="datetime-local"> dalam WIB. */
+export function toLocalInput(d: Date | null | undefined): string {
+  if (!d) return "";
+  return `${isoDateInJakarta(d)}T${jakartaTime(d)}`;
+}
