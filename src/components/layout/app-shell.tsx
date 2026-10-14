@@ -54,6 +54,7 @@ export function AppShell({ user, permissions, logoutAction, children }: Props) {
 
   return (
     <div className="flex min-h-screen flex-col lg:pl-64">
+      <a href="#konten" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[80] focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:shadow">Lewati ke konten</a>
       <Suspense fallback={null}><NavigationProgress /></Suspense>
       {/* Sidebar desktop */}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-slate-200 bg-white lg:flex">
@@ -98,7 +99,7 @@ export function AppShell({ user, permissions, logoutAction, children }: Props) {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-5 sm:px-6 sm:py-6">{children}</main>
+      <main id="konten" tabIndex={-1} className="mx-auto w-full max-w-7xl flex-1 px-4 py-5 sm:px-6 sm:py-6">{children}</main>
       <Footer />
     </div>
   );

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { AdminRequestStatus, Prisma } from "@prisma/client";
 import { prisma } from "../db";
-import { assertCan, can, type AuthContext } from "../auth/context";
+import { assertCan, assertCanAny, can, type AuthContext } from "../auth/context";
 import { AppError, ConflictError, ForbiddenError, NotFoundError } from "../errors";
 import { writeAudit } from "../audit";
 import { nextNumber } from "../counters";
@@ -21,6 +21,7 @@ export const submitRequestSchema = z.object({
 const MAX_DOCS = 5;
 
 export async function listRequestTypes(ctx: AuthContext, includeInactive = false) {
+  assertCanAny(ctx, ["administration.submit", "administration.view"]);
   return prisma.administrativeRequestType.findMany({
     where: { organizationId: ctx.organizationId, ...(includeInactive ? {} : { isActive: true }) },
     orderBy: { name: "asc" },

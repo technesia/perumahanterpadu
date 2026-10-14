@@ -13,7 +13,12 @@ Stack: Next.js 15 (App Router) + TypeScript · Tailwind CSS · PostgreSQL 16 + P
 | 3 — Finance & Administration | Keuangan masuk/keluar, saldo kas, rekap, pengajuan surat, Activity Log realtime, pengaturan, matriks role | ✅ Selesai |
 | 4 — Community | Pengumuman, kegiatan, fasilitas, booking kalender, notifikasi, UMKM, Posyandu | ✅ Selesai |
 | 5 — Security | Buku tamu, laporan kejadian, CCTV, kontak darurat | ✅ Selesai |
-| 6 — QA | Pengujian menyeluruh, dokumentasi deployment, backup/restore | ⏳ Berikutnya |
+| 6 — QA | Review keamanan, uji RBAC & isolasi, uji performa, backup/restore teruji, dokumentasi | ✅ Selesai |
+
+Dokumen penting:
+
+- **[docs/STATUS.md](docs/STATUS.md)** — fitur selesai, integrasi yang belum aktif, dan checklist acceptance test #1–#54.
+- **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** — deployment production, reverse proxy, backup & restore, pembaruan.
 
 ## Instalasi (development)
 

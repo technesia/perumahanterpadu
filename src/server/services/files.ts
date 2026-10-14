@@ -38,5 +38,7 @@ async function financeOrPublicFile(ctx: AuthContext, fileId: string) {
   if (fin) return can(ctx, "finance.view");
   if (ann) return can(ctx, "announcements.manage") || (ann.status === "PUBLISHED" && ann.audience !== "INTERNAL");
   if (biz) return can(ctx, "businesses.manage") || biz.status === "PUBLISHED";
-  return act > 0 || fac > 0;
+  if (act) return can(ctx, "activities.view") || can(ctx, "activities.manage");
+  if (fac) return can(ctx, "facilities.view") || can(ctx, "facilities.manage");
+  return false;
 }
