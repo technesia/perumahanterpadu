@@ -12,8 +12,8 @@ Stack: Next.js 15 (App Router) + TypeScript · Tailwind CSS · PostgreSQL 16 + P
 | 2 — Core Management | Dashboard per role, warga, rumah, akun, IPL, pembayaran & bukti transfer, verifikasi, tunggakan | ✅ Selesai |
 | 3 — Finance & Administration | Keuangan masuk/keluar, saldo kas, rekap, pengajuan surat, Activity Log realtime, pengaturan, matriks role | ✅ Selesai |
 | 4 — Community | Pengumuman, kegiatan, fasilitas, booking kalender, notifikasi, UMKM, Posyandu | ✅ Selesai |
-| 5 — Security | Buku tamu, laporan kejadian, CCTV, kontak darurat | ⏳ Berikutnya |
-| 6 — QA | Pengujian menyeluruh, dokumentasi deployment, backup/restore | ⏳ |
+| 5 — Security | Buku tamu, laporan kejadian, CCTV, kontak darurat | ✅ Selesai |
+| 6 — QA | Pengujian menyeluruh, dokumentasi deployment, backup/restore | ⏳ Berikutnya |
 
 ## Instalasi (development)
 
@@ -105,6 +105,20 @@ Membuat rumah Blok D, warga berlabel `[DEMO]`, tagihan 8 bulan terakhir, dan aku
 - Kalender untuk warga hanya menampilkan status slot — nama pemesan hanya terlihat pengurus; nomor HP dan alamat
   warga lain tidak pernah dikirim.
 - Notifikasi (belum/sudah dibaca) untuk booking baru, disetujui, ditolak, dan dibatalkan; klik membuka detail.
+
+## Keamanan lingkungan
+
+- **Buku tamu**: tamu masuk/keluar dengan nomor kunjungan, pencarian nama/rumah/plat/tanggal/status. Nomor identitas
+  bersifat opsional, disimpan terenkripsi, tidak pernah dikirim di daftar, dan hanya tampil tersamar di detail.
+  Check-out dilindungi dari pencatatan ganda.
+- **Laporan kejadian**: Security membuat laporan dengan lampiran privat; Admin/Super Admin menindaklanjuti (status &
+  catatan pengurus) dan pelapor menerima notifikasi.
+- **CCTV**: direktori kamera. Tautan akses disimpan di server, **tidak pernah dirender di halaman**, dan dibuka
+  melalui `/api/cctv/:id/open` (cek izin + audit log setiap akses). URL berisi kredensial ditolak. Live streaming
+  belum terintegrasi.
+- **Kontak darurat**: Ambulans/Polisi/PLN dari variabel lingkungan `EMERGENCY_*` (bukan database). Nomor default
+  adalah layanan nasional (119/110/123) dan ditandai **belum diverifikasi** sampai `EMERGENCY_VERIFIED="true"`.
+  Nomor dengan format tidak valid tidak ditampilkan sebagai tombol telepon.
 
 ## Activity Log realtime
 
