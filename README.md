@@ -10,8 +10,8 @@ Stack: Next.js 15 (App Router) + TypeScript · Tailwind CSS · PostgreSQL 16 + P
 |---|---|---|
 | 1 — Foundation | Skema database lengkap, migration, seed, autentikasi, RBAC, organization context, setup Super Admin, design system | ✅ Selesai |
 | 2 — Core Management | Dashboard per role, warga, rumah, akun, IPL, pembayaran & bukti transfer, verifikasi, tunggakan | ✅ Selesai |
-| 3 — Finance & Administration | Keuangan masuk/keluar, saldo kas, pengajuan surat, Activity Log | ⏳ Berikutnya |
-| 4 — Community | Pengumuman, kegiatan, fasilitas, booking, notifikasi, UMKM, Posyandu | ⏳ |
+| 3 — Finance & Administration | Keuangan masuk/keluar, saldo kas, rekap, pengajuan surat, Activity Log realtime, pengaturan, matriks role | ✅ Selesai |
+| 4 — Community | Pengumuman, kegiatan, fasilitas, booking, notifikasi, UMKM, Posyandu | ⏳ Berikutnya |
 | 5 — Security | Buku tamu, laporan kejadian, CCTV, kontak darurat | ⏳ |
 | 6 — QA | Pengujian menyeluruh, dokumentasi deployment, backup/restore | ⏳ |
 
@@ -80,6 +80,23 @@ Membuat rumah Blok D, warga berlabel `[DEMO]`, tagihan 8 bulan terakhir, dan aku
 - Pembayaran parsial dinonaktifkan secara default (`organizations.allowPartialPayment`).
 - **QRIS**: struktur adapter + webhook idempoten sudah ada (`src/server/payments/qris.ts`,
   `/api/payments/qris/webhook`), tetapi **belum ada provider yang terpasang** — opsi QRIS tampil nonaktif.
+
+## Aturan keuangan
+
+- **Saldo akhir = saldo awal + pemasukan tercatat − pengeluaran tercatat**, dihitung sejak tanggal berlaku saldo
+  awal terbaru. Saldo awal hanya diatur Super Admin; riwayatnya disimpan dan tercatat di audit log.
+- Pemasukan IPL dibuat **otomatis** saat pembayaran diverifikasi (sumber `IPL_PAYMENT`, satu kali per pembayaran).
+  Kategori IPL tidak dapat dipakai untuk pemasukan manual, sehingga tidak ada pencatatan ganda.
+- Transaksi manual dikoreksi dengan **alasan wajib**; nilai sebelum & sesudah disimpan di
+  `finance_transaction_histories` dan audit log. Pembatalan menandai transaksi *Dibatalkan* (tidak dihapus) dan
+  mengeluarkannya dari saldo.
+- Pengeluaran hanya mengurangi saldo kas — tidak pernah mengubah status IPL warga.
+
+## Activity Log realtime
+
+Semua log ditulis oleh backend ke tabel `audit_logs` (append-only, dijaga trigger DB). Halaman Activity Log menerima
+log baru melalui **Server-Sent Events** (`/api/audit-logs/stream`, server memeriksa log baru tiap 3 detik). Bila SSE
+gagal, klien otomatis beralih ke **polling 10 detik** (`/api/audit-logs?since=`). Percobaan login gagal juga dicatat.
 
 ## Testing
 

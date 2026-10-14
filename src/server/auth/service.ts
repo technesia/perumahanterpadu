@@ -50,6 +50,10 @@ export async function authenticate(input: LoginInput) {
   if (!user || !ok) {
     await recordAttempt(keys, false);
     if (user) {
+      await writeAudit(
+        { organizationId, userId: user.id, name: user.name, primaryRole: pickPrimaryRole(user.roles.map((r) => r.role.key as RoleKey)), ip: input.ip },
+        { action: "LOGIN_FAILED", module: "auth", status: "FAILED", summary: `Percobaan masuk gagal untuk akun ${user.username}`, entityType: "User", entityId: user.id },
+      );
       const failures = user.failedLoginCount + 1;
       await prisma.user.update({
         where: { id: user.id },

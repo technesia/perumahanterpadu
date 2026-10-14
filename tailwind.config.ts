@@ -27,6 +27,9 @@ export default {
           700: "#7d6227",
         },
       },
+      keyframes: {
+        progress: { "0%": { transform: "translateX(-100%)" }, "100%": { transform: "translateX(300%)" } },
+      },
       fontFamily: {
         sans: ["var(--font-sans)", "system-ui", "sans-serif"],
       },

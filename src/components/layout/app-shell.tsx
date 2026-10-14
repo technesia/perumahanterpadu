@@ -1,12 +1,13 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { Suspense, useEffect, useState, type ReactNode } from "react";
 import { LogOut, Menu, X } from "lucide-react";
 import { navFor } from "./nav-config";
 import { Logo } from "./logo";
 import { Footer } from "./footer";
 import { NotificationBell } from "./notification-bell";
+import { NavigationProgress } from "./navigation-progress";
 import { cn } from "../ui/cn";
 
 interface Props {
@@ -53,6 +54,7 @@ export function AppShell({ user, permissions, logoutAction, children }: Props) {
 
   return (
     <div className="flex min-h-screen flex-col lg:pl-64">
+      <Suspense fallback={null}><NavigationProgress /></Suspense>
       {/* Sidebar desktop */}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-slate-200 bg-white lg:flex">
         <div className="flex justify-center border-b border-slate-100 px-4 py-3">
