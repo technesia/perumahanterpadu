@@ -1,0 +1,48 @@
+# Menjalankan aplikasi + PostgreSQL secara LOKAL untuk mencoba.
+#
+#   docker compose up --build        → buka http://localhost:3000
+#
+# Nilai rahasia di bawah HANYA untuk komputer lokal. Jangan dipakai di server production
+# (lihat docs/DEPLOYMENT.md). Data demo berlabel [DEMO]; hapus DEMO_PASSWORD untuk tanpa demo.
+name: tprm
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: tprm
+      POSTGRES_PASSWORD: tprm_local
+      POSTGRES_DB: tprm
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tprm"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    environment:
+      DATABASE_URL: postgresql://tprm:tprm_local@db:5432/tprm?schema=public
+      ORGANIZATION_SLUG: taman-pesona-rajeg-mulya
+      SESSION_SECRET: local-docker-only-session-secret-0123456789
+      DATA_ENCRYPTION_KEY: local-docker-only-encryption-key-0123456789
+      LOCAL_HTTP: "true"
+      STORAGE_DIR: /app/storage
+      APP_PORT: ${APP_PORT:-3000}
+      DEMO_PASSWORD: ${DEMO_PASSWORD-DemoWarga12345}
+      # Opsional: buat Super Admin sendiri saat start
+      SA_USERNAME: ${SA_USERNAME:-}
+      SA_PASSWORD: ${SA_PASSWORD:-}
+    volumes:
+      - storage:/app/storage
+
+volumes:
+  db-data:
+  storage:

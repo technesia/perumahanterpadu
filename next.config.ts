@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const isProd = process.env.NODE_ENV === "production";
+// HSTS tidak dikirim saat LOCAL_HTTP=true (uji lokal lewat http://localhost) agar browser tidak memaksa HTTPS.
+const sendHsts = isProd && process.env.LOCAL_HTTP !== "true";
 
 // CSP: Next.js memerlukan inline script/style untuk hydration; sumber eksternal tidak diizinkan.
 const csp = [
@@ -18,7 +20,7 @@ const csp = [
 
 const securityHeaders = [
   { key: "Content-Security-Policy", value: csp },
-  ...(isProd ? [{ key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" }] : []),
+  ...(sendHsts ? [{ key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" }] : []),
   { key: "X-Frame-Options", value: "DENY" },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },

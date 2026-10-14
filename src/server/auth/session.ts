@@ -21,7 +21,8 @@ export async function clientIp(): Promise<string | null> {
 export async function setSessionCookie(token: string) {
   (await cookies()).set(SESSION_COOKIE, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    // LOCAL_HTTP=true hanya untuk menjalankan build production lewat http://localhost (Docker lokal).
+    secure: process.env.NODE_ENV === "production" && process.env.LOCAL_HTTP !== "true",
     sameSite: "lax",
     path: "/",
     maxAge: Math.floor(sessionTtlMs() / 1000),
