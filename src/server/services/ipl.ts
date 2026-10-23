@@ -7,7 +7,7 @@ import { writeAudit } from "../audit";
 import { optionalText, pageParams, requiredText, rupiahSchema } from "../validation";
 import { todayDate } from "@/lib/dates";
 import {
-  arrearsWindow, billDisplayStatus, comparePeriod, dueDateFor, isArrears, outstanding, periodIndex, periodsBetween,
+  arrearsWindow, billDisplayStatus, comparePeriod, dueDateFor, isArrears, OPENING_KINDS, outstanding, periodIndex, periodsBetween,
   type Period,
 } from "@/lib/ipl";
 import { periodLabel } from "@/lib/format";
@@ -33,6 +33,14 @@ function periodRangeWhere(start: Period, end: Period): Prisma.IplBillWhereInput 
   };
 }
 
+/**
+ * Periode di dalam jendela pelacakan, ATAU tunggakan awal (selalu dilacak berapa pun umurnya,
+ * termasuk tunggakan awal tanpa rincian periode yang memakai periode 0/0).
+ */
+function trackedPeriodWhere(start: Period, end: Period): Prisma.IplBillWhereInput {
+  return { OR: [periodRangeWhere(start, end), { kind: { in: [...OPENING_KINDS] } }] };
+}
+
 const noPendingAllocation: Prisma.IplBillWhereInput = {
   allocations: { none: { payment: { status: { in: [...PENDING_PAYMENT_STATUSES] } } } },
 };
@@ -44,7 +52,7 @@ export function arrearsWhere(organizationId: string, start: Period, end: Period,
     status: { in: ["UNPAID", "PARTIAL"] },
     dueDate: { lt: today },
     ...noPendingAllocation,
-    ...periodRangeWhere(start, end),
+    AND: [trackedPeriodWhere(start, end)],
   };
 }
 
@@ -128,12 +136,23 @@ export async function generateBills(ctx: AuthContext, input: z.input<typeof gene
     },
   });
   const periods = periodsBetween(from, to);
+  // Periode yang sudah tercatat sebagai tunggakan awal (jenis iuran apa pun) tidak ditagihkan lagi.
+  const opening = await prisma.iplBill.findMany({
+    where: {
+      organizationId: ctx.organizationId, kind: "OPENING_PERIOD", status: { not: "VOID" },
+      unitId: { in: units.map((u) => u.id) }, ...periodRangeWhere(from, to),
+    },
+    select: { unitId: true, periodYear: true, periodMonth: true },
+  });
+  const openingKeys = new Set(opening.map((o) => `${o.unitId}:${o.periodYear}:${o.periodMonth}`));
+  let skippedOpening = 0;
   const rows: Prisma.IplBillCreateManyInput[] = [];
   for (const u of units) {
     const responsible = u.memberships.find((m) => m.relation === "HEAD")?.residentId
       ?? u.memberships.find((m) => m.relation === "TENANT")?.residentId
       ?? u.memberships[0]?.residentId ?? u.ownerResidentId ?? null;
     for (const p of periods) {
+      if (openingKeys.has(`${u.id}:${p.year}:${p.month}`)) { skippedOpening++; continue; }
       rows.push({
         organizationId: ctx.organizationId, unitId: u.id, residentId: responsible, iplTypeId: type.id,
         periodYear: p.year, periodMonth: p.month, amount: type.amount, dueDate: dueDateFor(p, type.dueDay), createdById: ctx.userId,
@@ -145,9 +164,9 @@ export async function generateBills(ctx: AuthContext, input: z.input<typeof gene
     await writeAudit(ctx, {
       action: "IPL_BILLS_GENERATED", module: "ipl", entityType: "IplType", entityId: type.id,
       summary: `Menerbitkan ${res.count} tagihan ${type.name} periode ${periodLabel(from.year, from.month)} – ${periodLabel(to.year, to.month)}`,
-      metadata: { created: res.count, skipped: rows.length - res.count, units: units.length },
+      metadata: { created: res.count, skipped: rows.length - res.count + skippedOpening, skippedOpening, units: units.length },
     }, tx);
-    return { created: res.count, skipped: rows.length - res.count, units: units.length, periods: periods.length };
+    return { created: res.count, skipped: rows.length - res.count + skippedOpening, skippedOpening, units: units.length, periods: periods.length };
   });
 }
 
@@ -158,6 +177,7 @@ export async function voidBill(ctx: AuthContext, billId: string, reason: string)
     const [bill] = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM ipl_bills WHERE id = ${billId} AND "organizationId" = ${ctx.organizationId} FOR UPDATE`;
     if (!bill) throw new NotFoundError("Tagihan tidak ditemukan.");
     const b = await tx.iplBill.findUniqueOrThrow({ where: { id: billId }, include: { allocations: { include: { payment: true } } } });
+    if (b.kind !== "REGULAR") throw new AppError("Tunggakan awal dibatalkan atau dikoreksi melalui menu Tunggakan Awal agar tercatat riwayat koreksinya.");
     if (b.status !== "UNPAID" || b.paidAmount > 0) throw new AppError("Hanya tagihan yang belum dibayar sama sekali yang dapat dibatalkan.");
     if (b.allocations.some((a) => (PENDING_PAYMENT_STATUSES as readonly string[]).includes(a.payment.status))) {
       throw new AppError("Tagihan sedang dalam proses verifikasi pembayaran.");
@@ -187,7 +207,7 @@ export function decorateBill(b: BillWithPending, today = todayDate()) {
     .filter((a) => (PENDING_PAYMENT_STATUSES as readonly string[]).includes(a.payment.status))
     .reduce((s, a) => s + a.amount, 0);
   return {
-    id: b.id, unitId: b.unitId, unit: b.unit, typeName: b.iplType.name,
+    id: b.id, unitId: b.unitId, unit: b.unit, typeName: b.iplType.name, kind: b.kind,
     periodYear: b.periodYear, periodMonth: b.periodMonth, amount: b.amount, paidAmount: b.paidAmount,
     outstanding: outstanding(b), dueDate: b.dueDate, pendingAmount,
     displayStatus: billDisplayStatus(b, pendingAmount, today),
@@ -254,7 +274,7 @@ export async function unitBills(ctx: AuthContext, unitId: string) {
   const window = await windowFor(ctx.organizationId);
   const today = todayDate();
   const bills = await prisma.iplBill.findMany({
-    where: { organizationId: ctx.organizationId, unitId, status: { not: "VOID" }, ...periodRangeWhere(window.start, addFuture(window.end)) },
+    where: { organizationId: ctx.organizationId, unitId, status: { not: "VOID" }, ...trackedPeriodWhere(window.start, addFuture(window.end)) },
     include: billInclude,
     orderBy: [{ periodYear: "asc" }, { periodMonth: "asc" }],
   });

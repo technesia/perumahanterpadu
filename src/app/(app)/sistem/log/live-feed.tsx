@@ -7,13 +7,15 @@ const ROLE_LABEL: Record<string, string> = { SUPER_ADMIN: "Super Admin", ADMIN: 
 interface Log { id: string; createdAt: string; userName: string | null; userRole: string | null; action: string; module: string; entityType: string | null; entityId: string | null; summary: string; status: string }
 
 /** Menerima log baru secara realtime (SSE). Bila SSE gagal, beralih ke polling 10 detik. */
-export function LiveFeed({ since, module, q }: { since: string; module?: string; q?: string }) {
+export function LiveFeed({ since, filter }: { since: string; filter: Record<string, string | undefined> }) {
   const [logs, setLogs] = useState<Log[]>([]);
   const [mode, setMode] = useState<"sse" | "polling" | "connecting">("connecting");
   const last = useRef(since);
+  const filterKey = JSON.stringify(filter);
 
   useEffect(() => {
-    const params = new URLSearchParams({ since: last.current, ...(module ? { module } : {}), ...(q ? { q } : {}) });
+    const extra = Object.fromEntries(Object.entries(JSON.parse(filterKey) as Record<string, string | undefined>).filter(([, v]) => v)) as Record<string, string>;
+    const params = new URLSearchParams({ since: last.current, ...extra });
     let poll: ReturnType<typeof setInterval> | null = null;
     let failures = 0;
     const add = (rows: Log[]) => {
@@ -25,7 +27,7 @@ export function LiveFeed({ since, module, q }: { since: string; module?: string;
       setMode("polling");
       poll = setInterval(async () => {
         try {
-          const r = await fetch(`/api/audit-logs?${new URLSearchParams({ since: last.current, ...(module ? { module } : {}), ...(q ? { q } : {}) })}`);
+          const r = await fetch(`/api/audit-logs?${new URLSearchParams({ since: last.current, ...extra })}`);
           if (r.ok) add(await r.json());
         } catch { /* coba lagi */ }
       }, 10_000);
@@ -38,7 +40,7 @@ export function LiveFeed({ since, module, q }: { since: string; module?: string;
       if (failures >= 3) { es.close(); startPolling(); }
     };
     return () => { es.close(); if (poll) clearInterval(poll); };
-  }, [module, q]);
+  }, [filterKey]);
 
   return (
     <div className="border-b border-slate-100 px-4 py-3 sm:px-5">

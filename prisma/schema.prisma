@@ -32,32 +32,32 @@ model Organization {
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
-  users                  User[]
-  userRoles              UserRole[]
-  auditLogs              AuditLog[]
-  residents              Resident[]
-  units                  ResidentialUnit[]
-  memberships            ResidentUnitMembership[]
-  iplTypes               IplType[]
-  iplBills               IplBill[]
-  iplPayments            IplPayment[]
-  financeCategories      FinanceCategory[]
-  financeTransactions    FinanceTransaction[]
-  openingBalances        OpeningBalance[]
-  adminRequestTypes      AdministrativeRequestType[]
-  adminRequests          AdministrativeRequest[]
-  announcements          Announcement[]
-  activities             Activity[]
-  facilities             Facility[]
-  facilityBookings       FacilityBooking[]
-  notifications          Notification[]
-  visitorLogs            VisitorLog[]
-  securityIncidents      SecurityIncident[]
-  cctvCameras            CctvCamera[]
-  businesses             ResidentBusiness[]
-  posyanduActivities     PosyanduActivity[]
-  storedFiles            StoredFile[]
-  counters               Counter[]
+  users               User[]
+  userRoles           UserRole[]
+  auditLogs           AuditLog[]
+  residents           Resident[]
+  units               ResidentialUnit[]
+  memberships         ResidentUnitMembership[]
+  iplTypes            IplType[]
+  iplBills            IplBill[]
+  iplPayments         IplPayment[]
+  financeCategories   FinanceCategory[]
+  financeTransactions FinanceTransaction[]
+  openingBalances     OpeningBalance[]
+  adminRequestTypes   AdministrativeRequestType[]
+  adminRequests       AdministrativeRequest[]
+  announcements       Announcement[]
+  activities          Activity[]
+  facilities          Facility[]
+  facilityBookings    FacilityBooking[]
+  notifications       Notification[]
+  visitorLogs         VisitorLog[]
+  securityIncidents   SecurityIncident[]
+  cctvCameras         CctvCamera[]
+  businesses          ResidentBusiness[]
+  posyanduActivities  PosyanduActivity[]
+  storedFiles         StoredFile[]
+  counters            Counter[]
 
   @@map("organizations")
 }
@@ -78,10 +78,10 @@ model User {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  organization Organization  @relation(fields: [organizationId], references: [id])
-  roles        UserRole[]
-  sessions     UserSession[]
-  resident     Resident?     @relation("ResidentAccount")
+  organization  Organization   @relation(fields: [organizationId], references: [id])
+  roles         UserRole[]
+  sessions      UserSession[]
+  resident      Resident?      @relation("ResidentAccount")
   notifications Notification[]
 
   @@unique([organizationId, username])
@@ -217,7 +217,7 @@ model StoredFile {
   uploadedById   String?
   createdAt      DateTime @default(now())
 
-  organization Organization @relation(fields: [organizationId], references: [id])
+  organization Organization                    @relation(fields: [organizationId], references: [id])
   iplProofs    IplPaymentProof[]
   requestDocs  AdministrativeRequestDocument[]
   incidentDocs SecurityIncidentAttachment[]
@@ -241,28 +241,28 @@ enum OccupancyStatus {
 }
 
 model Resident {
-  id               String          @id @default(cuid())
-  organizationId   String
-  code             String
-  fullName         String
-  nik              String?
-  phone            String?
-  email            String?
-  status           ResidentStatus  @default(ACTIVE)
-  occupancyStatus  OccupancyStatus @default(PERMANENT)
-  moveInDate       DateTime?       @db.Date
-  recordedAt       DateTime        @default(now())
-  deathDate        DateTime?       @db.Date
-  deathRecordedAt  DateTime?
+  id                String          @id @default(cuid())
+  organizationId    String
+  code              String
+  fullName          String
+  nik               String?
+  phone             String?
+  email             String?
+  status            ResidentStatus  @default(ACTIVE)
+  occupancyStatus   OccupancyStatus @default(PERMANENT)
+  moveInDate        DateTime?       @db.Date
+  recordedAt        DateTime        @default(now())
+  deathDate         DateTime?       @db.Date
+  deathRecordedAt   DateTime?
   deathRecordedById String?
-  internalNotes    String?
-  userId           String?         @unique
-  archivedAt       DateTime?
-  archivedById     String?
-  createdById      String?
-  updatedById      String?
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  internalNotes     String?
+  userId            String?         @unique
+  archivedAt        DateTime?
+  archivedById      String?
+  createdById       String?
+  updatedById       String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
 
   organization Organization             @relation(fields: [organizationId], references: [id])
   user         User?                    @relation("ResidentAccount", fields: [userId], references: [id])
@@ -284,13 +284,13 @@ model Resident {
 }
 
 model ResidentHistory {
-  id          String   @id @default(cuid())
-  residentId  String
-  action      String
-  changes     Json
-  note        String?
-  actorId     String?
-  createdAt   DateTime @default(now())
+  id         String   @id @default(cuid())
+  residentId String
+  action     String
+  changes    Json
+  note       String?
+  actorId    String?
+  createdAt  DateTime @default(now())
 
   resident Resident @relation(fields: [residentId], references: [id])
 
@@ -381,34 +381,74 @@ enum IplBillStatus {
   VOID
 }
 
-/// Tagihan per rumah, per jenis IPL, per periode bulanan. Tidak boleh ganda.
-model IplBill {
-  id             String        @id @default(cuid())
-  organizationId String
-  unitId         String
-  residentId     String?
-  iplTypeId      String
-  periodYear     Int
-  periodMonth    Int
-  amount         Int
-  paidAmount     Int           @default(0)
-  status         IplBillStatus @default(UNPAID)
-  dueDate        DateTime      @db.Date
-  paidAt         DateTime?
-  createdById    String?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+enum IplBillKind {
+  /// Tagihan bulanan yang diterbitkan aplikasi.
+  REGULAR
+  /// Tunggakan awal per periode bulanan (sebelum aplikasi digunakan).
+  OPENING_PERIOD
+  /// Tunggakan awal tanpa rincian periode (total nominal). periodYear = periodMonth = 0.
+  OPENING_LUMP
+}
 
-  organization Organization            @relation(fields: [organizationId], references: [id])
-  unit         ResidentialUnit         @relation(fields: [unitId], references: [id])
-  resident     Resident?               @relation(fields: [residentId], references: [id])
-  iplType      IplType                 @relation(fields: [iplTypeId], references: [id])
+/// Tagihan per rumah, per jenis IPL, per periode bulanan. Tidak boleh ganda.
+/// Tunggakan awal disimpan sebagai tagihan dengan kind OPENING_* agar terintegrasi dengan
+/// pembayaran, tunggakan, dan laporan piutang — tanpa pernah dicatat sebagai pemasukan kas.
+model IplBill {
+  id                String        @id @default(cuid())
+  organizationId    String
+  unitId            String
+  residentId        String?
+  iplTypeId         String
+  periodYear        Int
+  periodMonth       Int
+  amount            Int
+  paidAmount        Int           @default(0)
+  status            IplBillStatus @default(UNPAID)
+  kind              IplBillKind   @default(REGULAR)
+  /// Bagian yang sudah dibayar SEBELUM aplikasi digunakan (termasuk dalam paidAmount, bukan kas).
+  initialPaidAmount Int           @default(0)
+  notes             String?
+  dueDate           DateTime      @db.Date
+  paidAt            DateTime?
+  createdById       String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  organization Organization           @relation(fields: [organizationId], references: [id])
+  unit         ResidentialUnit        @relation(fields: [unitId], references: [id])
+  resident     Resident?              @relation(fields: [residentId], references: [id])
+  iplType      IplType                @relation(fields: [iplTypeId], references: [id])
   allocations  IplPaymentAllocation[]
+  corrections  IplBillCorrection[]
 
   @@unique([organizationId, unitId, iplTypeId, periodYear, periodMonth])
+  @@index([organizationId, kind])
   @@index([organizationId, status, dueDate])
   @@index([organizationId, periodYear, periodMonth])
   @@map("ipl_bills")
+}
+
+/// Riwayat koreksi tunggakan awal (append-only). Koreksi tidak pernah menyentuh kas.
+model IplBillCorrection {
+  id                String        @id @default(cuid())
+  organizationId    String
+  billId            String
+  amountBefore      Int
+  amountAfter       Int
+  initialPaidBefore Int
+  initialPaidAfter  Int
+  statusBefore      IplBillStatus
+  statusAfter       IplBillStatus
+  reason            String
+  actorId           String?
+  actorName         String
+  createdAt         DateTime      @default(now())
+
+  bill IplBill @relation(fields: [billId], references: [id])
+
+  @@index([billId, createdAt])
+  @@index([organizationId, createdAt])
+  @@map("ipl_bill_corrections")
 }
 
 enum PaymentMethod {

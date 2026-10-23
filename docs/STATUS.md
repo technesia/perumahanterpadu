@@ -18,6 +18,7 @@ Status per 14 Oktober 2026. "Selesai" berarti: terhubung ke database, divalidasi
 | Administrasi | Pengajuan surat dengan dokumen, alur status, catatan internal, histori, jenis dapat dikonfigurasi |
 | Komunitas | Pengumuman (audiens, prioritas, lampiran), kegiatan, fasilitas, booking kalender anti-bentrok, notifikasi, UMKM (persetujuan pemilik), Posyandu |
 | Keamanan | Buku tamu masuk/keluar, laporan kejadian & tindak lanjut, direktori CCTV dengan akses berizin, kontak darurat |
+| IPL | Tunggakan awal: input manual (per periode / total nominal), impor Excel dengan pratinjau & berkas validasi, koreksi beraudit, ringkasan piutang; impor Data Warga |
 | Sistem | Activity Log append-only dengan realtime SSE + fallback polling, pengaturan kebijakan, Kontrol Akses Super Admin (nonaktifkan semua akun & mode lihat saja), health check |
 | Operasional | Backup/restore teruji, panduan deployment, uji performa |
 
@@ -88,7 +89,7 @@ Kolom bukti: **T** = automated test (`tests/`), **B** = uji browser end-to-end, 
 | 37 | Status booking memperbarui kalender | ✅ | T booking-community, B |
 | 38 | Data pemesan lain tidak bocor | ✅ | T booking-community |
 | 39 | Aktivitas penting tercatat dari backend | ✅ | T (audit di setiap modul) |
-| 40 | Activity Log hanya role berwenang | ✅ | T finance-admin, rbac-isolation, B |
+| 40 | Activity Log hanya role berwenang (Super Admin semua; Admin hanya Member/Security/sistem) | ✅ | T finance-admin, rbac-isolation, activity-log-visibility, B |
 | 41 | Admin tidak dapat ubah/hapus log | ✅ | T foundation (trigger DB), tidak ada endpoint ubah/hapus |
 | 42 | Realtime / fallback | ✅ | T finance-admin (query since), B (SSE: log baru muncul < 3 detik) |
 | 43 | Security catat tamu masuk/keluar | ✅ | T security, B |

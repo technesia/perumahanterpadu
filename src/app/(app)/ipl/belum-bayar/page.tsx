@@ -66,7 +66,7 @@ export default async function UnpaidPage({ searchParams }: { searchParams: SP })
                   <ul className="mt-3 divide-y divide-slate-100 rounded-lg border text-sm sm:hidden">
                     {it.bills.map((b) => (
                       <li key={b.id} className="flex items-center justify-between gap-2 px-3 py-2">
-                        <span>{MONTHS_ID[b.periodMonth - 1]} {b.periodYear}<br /><span className="text-xs text-slate-500">{b.typeName}</span></span>
+                        <span>{periodLabel(b.periodYear, b.periodMonth)}<br /><span className="text-xs text-slate-500">{b.typeName}</span></span>
                         <span className="text-right font-medium">{rupiah(b.outstanding)}<br /><BillStatusBadge status={b.displayStatus} /></span>
                       </li>
                     ))}
@@ -76,7 +76,7 @@ export default async function UnpaidPage({ searchParams }: { searchParams: SP })
                       <thead><tr><th>Bulan</th><th>Tahun</th><th>Jenis</th><th className="text-right">Nominal</th><th>Status</th></tr></thead>
                       <tbody>
                         {it.bills.map((b) => (
-                          <tr key={b.id}><td>{MONTHS_ID[b.periodMonth - 1]}</td><td>{b.periodYear}</td><td>{b.typeName}</td><td className="text-right">{rupiah(b.outstanding)}</td><td><BillStatusBadge status={b.displayStatus} /></td></tr>
+                          <tr key={b.id}><td>{b.periodMonth ? MONTHS_ID[b.periodMonth - 1] : "Tanpa rincian"}</td><td>{b.periodYear || "-"}</td><td>{b.typeName}</td><td className="text-right">{rupiah(b.outstanding)}</td><td><BillStatusBadge status={b.displayStatus} /></td></tr>
                         ))}
                       </tbody>
                     </table>

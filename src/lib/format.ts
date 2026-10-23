@@ -9,7 +9,11 @@ export function rupiah(amount: number): string {
   return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(amount);
 }
 
+export const LUMP_PERIOD_LABEL = "Tunggakan Awal (tanpa rincian periode)";
+
+/** Label periode tagihan. Periode 0/0 = tunggakan awal tanpa rincian periode. */
 export function periodLabel(year: number, month: number): string {
+  if (year === 0 && month === 0) return LUMP_PERIOD_LABEL;
   return `${MONTHS_ID[month - 1]} ${year}`;
 }
 

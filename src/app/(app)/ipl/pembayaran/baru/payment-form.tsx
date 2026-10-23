@@ -49,8 +49,9 @@ export function PaymentForm({ staff, self, qrisEnabled, allowPartial, maxUploadM
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [unitId]);
 
-  const years = useMemo(() => [...new Set((bills ?? []).map((b) => b.year))], [bills]);
-  const visible = (bills ?? []).filter((b) => !year || String(b.year) === year);
+  const years = useMemo(() => [...new Set((bills ?? []).map((b) => b.year).filter((y) => y > 0))], [bills]);
+  // Tunggakan awal tanpa rincian periode (tahun 0) selalu ditampilkan.
+  const visible = (bills ?? []).filter((b) => !year || b.year === 0 || String(b.year) === year);
   const amountFor = (b: Payable) => (allowPartial && amounts[b.id] ? amounts[b.id] : b.outstanding);
   const total = (bills ?? []).filter((b) => selected.has(b.id)).reduce((s, b) => s + amountFor(b), 0);
   const toggle = (id: string) => setSelected((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
@@ -118,7 +119,7 @@ export function PaymentForm({ staff, self, qrisEnabled, allowPartial, maxUploadM
                   <li key={b.id} className="flex flex-wrap items-center gap-3 px-3 py-2.5">
                     <input id={`b-${b.id}`} type="checkbox" checked={selected.has(b.id)} onChange={() => toggle(b.id)} className="h-5 w-5 accent-brand-700" />
                     <label htmlFor={`b-${b.id}`} className="min-w-0 flex-1 cursor-pointer text-sm">
-                      <span className="font-medium">{MONTHS_ID[b.month - 1]} {b.year}</span> <span className="text-slate-500">· {b.typeName}</span>
+                      <span className="font-medium">{b.year === 0 ? b.label : `${MONTHS_ID[b.month - 1]} ${b.year}`}</span> <span className="text-slate-500">· {b.typeName}</span>
                       {" "}{b.arrears ? <Badge tone="red">Tunggakan</Badge> : b.status === "NOT_DUE" ? <Badge>Belum jatuh tempo</Badge> : b.status === "PARTIAL" ? <Badge tone="gold">Parsial</Badge> : null}
                     </label>
                     {allowPartial && selected.has(b.id) ? (
@@ -169,13 +170,16 @@ export function PaymentForm({ staff, self, qrisEnabled, allowPartial, maxUploadM
   );
 }
 
-function ResidentSearch({ onSelect, error }: { onSelect: (r: ResidentInfo) => void; error?: string }) {
+export function ResidentSearch({ onSelect, error }: { onSelect: (r: ResidentInfo) => void; error?: string }) {
   const [q, setQ] = useState("");
   const [results, setResults] = useState<ResidentInfo[]>([]);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
+  const picked = useRef<string | null>(null);
   useEffect(() => {
     if (q.trim().length < 2) { setResults([]); return; }
+    // Teks berasal dari warga yang baru dipilih: jangan buka daftar lagi.
+    if (picked.current === q) return;
     const t = setTimeout(async () => {
       setLoading(true);
       try {
@@ -202,7 +206,7 @@ function ResidentSearch({ onSelect, error }: { onSelect: (r: ResidentInfo) => vo
           {results.map((r) => (
             <li key={r.id} role="option" aria-selected={false}>
               <button type="button" className="block w-full px-4 py-2.5 text-left text-sm hover:bg-brand-50"
-                onClick={() => { onSelect(r); setQ(r.fullName); setOpen(false); }}>
+                onClick={() => { onSelect(r); picked.current = r.fullName; setQ(r.fullName); setOpen(false); }}>
                 <span className="font-medium">{r.fullName}</span> <span className="text-slate-500">· {r.units.map((u) => u.houseNumber).join(", ") || "tanpa rumah"}</span>
               </button>
             </li>

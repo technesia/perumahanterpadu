@@ -17,7 +17,10 @@ export async function GET(req: Request) {
   if (!ctx) return NextResponse.json({ error: "Tidak terautentikasi" }, { status: 401 });
   if (!can(ctx, "audit_logs.view")) return NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
   const u = new URL(req.url).searchParams;
-  const filter = { module: u.get("module") || undefined, q: u.get("q") || undefined };
+  const filter = {
+    module: u.get("module") || undefined, q: u.get("q") || undefined,
+    role: u.get("role") || undefined, action: u.get("action") || undefined, userId: u.get("userId") || undefined,
+  };
   const start = new Date(u.get("since") ?? Date.now());
   let last = Number.isNaN(start.getTime()) ? new Date() : start;
   const enc = new TextEncoder();
