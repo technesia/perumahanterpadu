@@ -2,7 +2,7 @@ import {
   Activity, BadgeDollarSign, Bell, BookUser, Building2, CalendarCheck, CalendarDays, Camera, ClipboardList,
   FileText, HandCoins, HeartPulse, Home, KeyRound, LayoutDashboard, Megaphone, NotebookPen, PhoneCall,
   Receipt, ScrollText, Settings, ShieldAlert, ShieldCheck, Store, TrendingDown, TrendingUp, UserCircle,
-  Power, Users, Wallet, type LucideIcon,
+  Landmark, Power, Users, Wallet, type LucideIcon,
 } from "lucide-react";
 
 export interface NavItem { label: string; href: string; icon: LucideIcon; perms?: string[] }
@@ -21,6 +21,7 @@ const ADMIN_NAV: NavGroup[] = [
     { label: "Pembayaran IPL", href: "/ipl/pembayaran", icon: HandCoins, perms: ["ipl.view"] },
     { label: "IPL Belum Bayar", href: "/ipl/belum-bayar", icon: BadgeDollarSign, perms: ["ipl.view"] },
     { label: "Tunggakan", href: "/ipl/tunggakan", icon: Wallet, perms: ["ipl.view"] },
+    { label: "Tunggakan Awal", href: "/ipl/tunggakan-awal", icon: Landmark, perms: ["ipl.view"] },
     { label: "Keuangan Masuk", href: "/keuangan/masuk", icon: TrendingUp, perms: ["finance.view"] },
     { label: "Keuangan Keluar", href: "/keuangan/keluar", icon: TrendingDown, perms: ["finance.view"] },
     { label: "Rekap Keuangan", href: "/keuangan/rekap", icon: ScrollText, perms: ["finance.view"] },

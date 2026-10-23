@@ -14,7 +14,7 @@ export const ROLE_LABELS: Record<RoleKey, string> = {
 export const PERMISSIONS = {
   "dashboard.admin": ["dashboard", "Melihat dashboard pengurus"],
   "residents.view": ["residents", "Melihat data warga"],
-  "residents.create": ["residents", "Menambah data warga"],
+  "residents.create": ["residents", "Menambah data warga (termasuk impor Excel)"],
   "residents.update": ["residents", "Mengubah data warga"],
   "residents.deactivate": ["residents", "Mengarsipkan / menonaktifkan warga"],
   "residents.view_sensitive": ["residents", "Melihat NIK dan catatan internal warga"],
@@ -29,6 +29,7 @@ export const PERMISSIONS = {
   "roles.view": ["users", "Melihat matriks role dan permission"],
   "ipl.view": ["ipl", "Melihat seluruh tagihan dan pembayaran IPL"],
   "ipl.manage": ["ipl", "Mengelola master IPL dan menerbitkan tagihan"],
+  "ipl.opening_manage": ["ipl", "Mengelola tunggakan awal: input manual, impor Excel, dan koreksi"],
   "ipl.payment_submit": ["ipl", "Mengajukan pembayaran IPL"],
   "ipl.payment_verify": ["ipl", "Memverifikasi / menolak pembayaran IPL"],
   "ipl.payment_record": ["ipl", "Mencatat pembayaran IPL atas nama warga (tunai)"],
@@ -58,7 +59,8 @@ export const PERMISSIONS = {
   "security.incidents.review": ["security", "Meninjau dan menindaklanjuti laporan kejadian"],
   "cctv.view": ["security", "Melihat direktori CCTV"],
   "cctv.manage": ["security", "Mengelola data CCTV"],
-  "audit_logs.view": ["system", "Melihat Activity Log"],
+  "audit_logs.view": ["system", "Melihat Activity Log (aktivitas Member, Security, dan sistem)"],
+  "audit_logs.view_all": ["system", "Melihat seluruh Activity Log, termasuk aktivitas Admin dan Super Admin"],
   "settings.manage": ["system", "Mengelola pengaturan sistem"],
   "system.access_control": ["system", "Mengunci semua akun & mode lihat saja (kontrol darurat)"],
 } as const satisfies Record<string, readonly [string, string]>;
@@ -73,6 +75,7 @@ const ADMIN_EXCLUDED: PermissionKey[] = [
   "settings.manage",
   "system.access_control",
   "finance.opening_balance",
+  "audit_logs.view_all",
 ];
 
 export const ROLE_PERMISSIONS: Record<RoleKey, PermissionKey[]> = {

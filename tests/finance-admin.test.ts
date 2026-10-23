@@ -166,8 +166,10 @@ describe("Activity Log (#39–#42)", () => {
     const since = new Date();
     await new Promise((r) => setTimeout(r, 10));
     await createTransaction(admin, "EXPENSE", tx((await cat("EXP_OTHER")).id, 2000), null);
-    const fresh = await auditLogsSince(admin, since);
-    expect(fresh.some((l) => l.action === "FINANCE_EXPENSE_CREATED" && l.userRole === "ADMIN")).toBe(true);
+    // Aktivitas Admin tidak terlihat oleh Admin lain; hanya Super Admin yang melihat semua role.
+    const { ctx: sa } = await makeUser("SUPER_ADMIN");
+    expect((await auditLogsSince(admin, since)).some((l) => l.action === "FINANCE_EXPENSE_CREATED")).toBe(false);
+    expect((await auditLogsSince(sa, since)).some((l) => l.action === "FINANCE_EXPENSE_CREATED" && l.userRole === "ADMIN")).toBe(true);
     const filtered = await listAuditLogs(admin, { module: "finance", page: 1 });
     expect(filtered.items.every((l) => l.module === "finance")).toBe(true);
   });

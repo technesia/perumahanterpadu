@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Plus, FileSpreadsheet } from "lucide-react";
 import { requirePage } from "@/server/auth/session";
 import { can } from "@/server/auth/context";
 import { listResidents } from "@/server/services/residents";
@@ -25,7 +25,10 @@ export default async function ResidentsPage({ searchParams }: { searchParams: SP
     <>
       <PageHeader title="Data Warga" description={`${total} warga ${f.archived ? "diarsipkan" : "terdaftar"}`}
         crumbs={[{ label: "Dashboard", href: "/dashboard" }, { label: "Data Warga" }]}
-        actions={can(ctx, "residents.create") && <LinkButton href="/warga/baru"><Plus className="h-4 w-4" /> Tambah Warga</LinkButton>} />
+        actions={can(ctx, "residents.create") && <>
+          <LinkButton href="/warga/impor" variant="secondary"><FileSpreadsheet className="h-4 w-4" /> Impor Excel</LinkButton>
+          <LinkButton href="/warga/baru"><Plus className="h-4 w-4" /> Tambah Warga</LinkButton>
+        </>} />
       <Card>
         <FilterBar action="/warga" q={f.q} placeholder="Nama, ID warga, nomor rumah, atau HP" resetHref="/warga">
           <FilterSelect name="status" label="Status" value={f.status} options={Object.entries(RESIDENT_STATUS).map(([value, label]) => ({ value, label }))} />

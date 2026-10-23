@@ -85,6 +85,7 @@ Super Admin (mereset password / mengaktifkan kembali akun). Setiap eksekusi terc
 - `npm run db:migrate:dev` — membuat migration baru saat development.
 - `npm run db:seed` — organisasi, 4 role, permission & matriks role, kategori keuangan, jenis pengajuan surat.
   Idempoten: menjalankan ulang tidak membuat duplikat dan menyinkronkan matriks permission.
+  **Jalankan ulang setelah update** yang menambah permission (mis. `ipl.opening_manage`, `audit_logs.view_all`).
 - Seed **tidak** membuat akun, data warga, transaksi, maupun nomor darurat.
 
 Constraint penting yang ditambahkan manual pada migration awal:
@@ -116,6 +117,30 @@ Membuat rumah Blok D, warga berlabel `[DEMO]`, tagihan 8 bulan terakhir, dan aku
 - Pembayaran parsial dinonaktifkan secara default (`organizations.allowPartialPayment`).
 - **QRIS**: struktur adapter + webhook idempoten sudah ada (`src/server/payments/qris.ts`,
   `/api/payments/qris/webhook`), tetapi **belum ada provider yang terpasang** — opsi QRIS tampil nonaktif.
+
+## Tunggakan awal & impor Excel
+
+Menu **Keuangan → Tunggakan Awal** (Admin & Super Admin, permission `ipl.opening_manage`) untuk tunggakan yang
+sudah ada sebelum aplikasi digunakan:
+
+- **Input manual** per warga (identitas wajib cocok dengan penghuni aktif rumah), dengan dua metode:
+  **Periode Bulanan** (bulan, tahun, nominal, bagian yang sudah dibayar) atau **Total Nominal** yang disimpan sebagai
+  *Tunggakan Awal Tanpa Rincian Periode* (maksimal satu per rumah; pembayaran tidak dialokasikan otomatis ke bulan).
+- **Impor Excel**: unduh template resmi (`/api/templates/tunggakan-ipl`, juga template **Data Warga** di
+  **Data Warga → Impor Excel**), unggah, periksa **pratinjau** (valid / duplikat / tidak cocok / tidak valid beserta
+  alasan per baris) dan unduh **berkas hasil validasi**. Tidak ada data yang disimpan sebelum **Konfirmasi Impor**.
+  Konfirmasi memvalidasi ulang berkas yang sama (sidik jari SHA-256) dan menyimpan semua baris valid dalam **satu
+  transaksi** — bila gagal, seluruh impor dibatalkan.
+- Tunggakan awal disimpan sebagai tagihan IPL (`kind = OPENING_PERIOD / OPENING_LUMP`) sehingga langsung muncul di
+  dashboard, tagihan warga, IPL Belum Bayar, laporan tunggakan, dan dapat dibayar seperti tagihan biasa. Tunggakan
+  awal **selalu dilacak** walau lebih tua dari jendela 60 bulan.
+- Satu rumah hanya boleh memiliki satu tagihan per periode (jenis iuran apa pun). Penerbitan tagihan bulanan
+  melewati periode yang sudah tercatat sebagai tunggakan awal.
+- Saldo piutang awal **tidak** dicatat sebagai pemasukan kas; kas hanya bertambah saat pembayaran dikonfirmasi.
+- **Koreksi** wajib alasan; nilai sebelum/sesudah, pelaku, dan waktu disimpan di `ipl_bill_corrections`
+  (append-only, dijaga trigger DB) dan Activity Log. Koreksi tidak menyentuh kas maupun pembayaran terkonfirmasi.
+  Tunggakan yang belum menerima pembayaran lewat aplikasi dapat dibatalkan (juga tercatat).
+- Ringkasan: total tunggakan awal, pembayaran atas tunggakan (lewat aplikasi), dan sisa piutang.
 
 ## Kontrol Akses (Super Admin)
 
@@ -174,6 +199,17 @@ Setiap perubahan meminta konfirmasi dan tercatat di Activity Log.
 Semua log ditulis oleh backend ke tabel `audit_logs` (append-only, dijaga trigger DB). Halaman Activity Log menerima
 log baru melalui **Server-Sent Events** (`/api/audit-logs/stream`, server memeriksa log baru tiap 3 detik). Bila SSE
 gagal, klien otomatis beralih ke **polling 10 detik** (`/api/audit-logs?since=`). Percobaan login gagal juga dicatat.
+
+Visibilitas berdasarkan role, ditegakkan di backend (`auditScopeWhere`) untuk halaman, API polling, SSE, dan
+dashboard — filter dari request selalu digabung dengan AND sehingga tidak dapat memperluas akses:
+
+| Role | Log yang terlihat |
+|---|---|
+| Super Admin (`audit_logs.view_all`) | Semua aktivitas (Super Admin, Admin, Member, Security, sistem) |
+| Admin (`audit_logs.view`) | Aktivitas Member, Security, dan aktivitas sistem tanpa pengguna |
+| Member / Security | Tidak ada akses (menu disembunyikan, halaman & endpoint ditolak) |
+
+Filter: pengguna, role, modul, jenis aktivitas, rentang tanggal. Perubahan role tercatat dengan role sebelum/sesudah.
 
 ## Testing
 

@@ -3,6 +3,7 @@ import { assertCan, can, type AuthContext } from "../auth/context";
 import { residentStats } from "./residents";
 import { currentPeriod, myBills, PENDING_PAYMENT_STATUSES, unpaidSummary } from "./ipl";
 import { cashSummary } from "./finance";
+import { recentAuditLogs } from "./audit-logs";
 import { todayDate } from "@/lib/dates";
 
 function startOfTodayJakarta() {
@@ -24,9 +25,7 @@ export async function adminDashboard(ctx: AuthContext) {
     prisma.facilityBooking.count({ where: { organizationId: org, status: "PENDING" } }),
     prisma.visitorLog.count({ where: { organizationId: org, checkInAt: { gte: startOfTodayJakarta() } } }),
     prisma.securityIncident.count({ where: { organizationId: org, status: { in: ["OPEN", "IN_PROGRESS"] } } }),
-    can(ctx, "audit_logs.view")
-      ? prisma.auditLog.findMany({ where: { organizationId: org }, orderBy: { createdAt: "desc" }, take: 8 })
-      : Promise.resolve([]),
+    recentAuditLogs(ctx, 8),
   ]);
   return {
     period: p, residents, units,
