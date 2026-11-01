@@ -47,13 +47,17 @@ const diskDriver: Driver = {
   },
 };
 
-/** Supabase Storage lewat REST API dengan service role key (hanya di server, tidak pernah ke browser). */
+/** Kunci server Supabase: service role key (lama, JWT) atau secret key (sb_secret_…) dari integrasi Vercel. */
+const supabaseServerKey = () => process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
+
+/** Supabase Storage lewat REST API dengan kunci server (hanya di server, tidak pernah ke browser). */
 function supabaseDriver(): Driver {
   const url = process.env.SUPABASE_URL?.replace(/\/+$/, "");
-  const keyEnv = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const keyEnv = supabaseServerKey();
   const bucket = process.env.SUPABASE_STORAGE_BUCKET || "berkas-privat";
-  if (!url || !keyEnv) throw new Error("SUPABASE_URL dan SUPABASE_SERVICE_ROLE_KEY wajib diset untuk STORAGE_DRIVER=supabase");
-  const headers = { Authorization: `Bearer ${keyEnv}`, apikey: keyEnv };
+  if (!url || !keyEnv) throw new Error("SUPABASE_URL dan SUPABASE_SERVICE_ROLE_KEY/SUPABASE_SECRET_KEY wajib diset untuk penyimpanan Supabase");
+  // Secret key baru (sb_secret_…) dikirim lewat header apikey; service role key (JWT) juga sebagai Bearer.
+  const headers: Record<string, string> = keyEnv.startsWith("eyJ") ? { Authorization: `Bearer ${keyEnv}`, apikey: keyEnv } : { apikey: keyEnv };
   const objectUrl = (key: string) => `${url}/storage/v1/object/${encodeURIComponent(bucket)}/${key.split("/").map(encodeURIComponent).join("/")}`;
   return {
     async put(key, data, mime) {
@@ -71,8 +75,13 @@ function supabaseDriver(): Driver {
   };
 }
 
+/**
+ * Driver dipilih lewat STORAGE_DRIVER. Bila kosong dan berjalan di Vercel dengan kredensial Supabase
+ * tersedia, otomatis memakai Supabase (disk Vercel tidak permanen).
+ */
 function driver(): Driver {
-  return process.env.STORAGE_DRIVER === "supabase" ? supabaseDriver() : diskDriver;
+  const choice = process.env.STORAGE_DRIVER || (process.env.VERCEL === "1" && process.env.SUPABASE_URL && supabaseServerKey() ? "supabase" : "disk");
+  return choice === "supabase" ? supabaseDriver() : diskDriver;
 }
 
 /** Deteksi tipe dari isi berkas (magic bytes), bukan dari nama/klaim browser. */

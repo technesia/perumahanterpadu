@@ -2,86 +2,71 @@
 
 Target: **https://perumahanterpadu.vercel.app** dari repo GitHub `technesia/perumahanterpadu` (branch `main`).
 Database dan penyimpanan berkas memakai **Supabase**. Semua rahasia diisi langsung di dashboard Supabase/Vercel —
-jangan pernah dikirim lewat chat, email, atau di-commit ke Git.
+jangan pernah dikirim lewat email atau di-commit ke Git.
 
-## 1. Supabase
+## 1. Supabase (sudah disiapkan)
 
-1. Buat akun di <https://supabase.com> → **New project**.
-   - Name: `perumahanterpadu` · Region: **Southeast Asia (Singapore)**.
-   - **Database Password**: buat password kuat dan simpan di password manager. Hindari karakter `@ : / ? # %`
-     (atau URL-encode bila dipakai).
-2. **Penyimpanan berkas**: menu **Storage → New bucket**.
-   - Name: `berkas-privat` · **Public bucket: OFF** (wajib privat).
-   - Tidak perlu membuat policy: aplikasi mengakses bucket dari server memakai service role key dan memeriksa
-     izin setiap unduhan sendiri.
-3. Catat nilai berikut (tombol **Connect** di atas dashboard project, dan **Project Settings → API**):
+Project Supabase **`perumahanterpadu`** (organisasi Technesia, region Singapore) sudah dibuat dan diisi:
 
-| Nilai | Dari mana | Contoh bentuk |
-|---|---|---|
-| `DATABASE_URL` | Connect → **Transaction pooler** (port **6543**), tambahkan `?pgbouncer=true&connection_limit=5` | `postgresql://postgres.abcd:PASSWORD@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=5` |
-| `DIRECT_URL` | Connect → **Session pooler** (port **5432**) | `postgresql://postgres.abcd:PASSWORD@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres` |
-| `SUPABASE_URL` | Project Settings → API → Project URL | `https://abcd.supabase.co` |
-| `SUPABASE_SERVICE_ROLE_KEY` | Project Settings → API → `service_role` (secret) | `eyJ...` — **rahasia** |
+- Semua tabel dari 5 migration Prisma, plus riwayat `_prisma_migrations` sehingga build Vercel tidak
+  menjalankan ulang migration.
+- Data dasar: organisasi, 4 role, 51 permission, kategori keuangan, jenis pengajuan surat.
+- Satu akun **Super Admin** (`superadmin`). **Ganti password-nya** lewat menu **Profil Saya** setelah login pertama.
+- Bucket Storage **`berkas-privat`** (privat, maks. 4 MB, JPG/PNG/PDF).
+- Keamanan: semua tabel aplikasi ditutup dari Data API Supabase (hak `anon`/`authenticated` dicabut, RLS aktif
+  tanpa policy). Aplikasi hanya mengakses database dari server.
 
-## 2. Buat kunci rahasia aplikasi
+Tidak ada data warga, tagihan, maupun data demo.
 
-Di laptop (PowerShell atau terminal), jalankan **dua kali** — satu untuk `SESSION_SECRET`, satu untuk
-`DATA_ENCRYPTION_KEY`:
+## 2. Hubungkan Supabase ke Vercel
+
+**Cara A — integrasi (disarankan, tanpa menyalin password):**
+Supabase Dashboard → project `perumahanterpadu` → **Project Settings → Integrations → Vercel** → Install/Connect →
+pilih team `taman-pesona-rajeg-mulya` dan project `perumahanterpadu`. Integrasi mengisi otomatis
+`POSTGRES_PRISMA_URL`, `POSTGRES_URL_NON_POOLING`, `SUPABASE_URL`, dan kunci server Supabase. Aplikasi membaca
+nama-nama tersebut secara otomatis (tidak perlu `DATABASE_URL`/`DIRECT_URL`).
+
+**Cara B — manual:** Supabase → **Connect**. Untuk password database: **Project Settings → Database → Reset database
+password** (project dibuat lewat otomasi, password awalnya tidak diketahui siapa pun).
+
+| Key di Vercel | Nilai |
+|---|---|
+| `DATABASE_URL` | Transaction pooler (port 6543) + `?pgbouncer=true&connection_limit=5` |
+| `DIRECT_URL` | Session pooler (port 5432) |
+| `SUPABASE_URL` | Project Settings → API → Project URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | Project Settings → API Keys → `service_role` / secret key (**rahasia**) |
+
+## 3. Kunci rahasia aplikasi (wajib, isi sendiri di Vercel)
+
+Jalankan **dua kali** di laptop:
 
 ```bash
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-`DATA_ENCRYPTION_KEY` mengenkripsi NIK. **Simpan baik-baik dan jangan pernah diganti** setelah ada data —
-bila hilang, NIK yang tersimpan tidak dapat dibaca lagi.
-
-## 3. Vercel
-
-1. <https://vercel.com> → **Add New… → Project** → **Import** repo `technesia/perumahanterpadu`.
-   (Bila repo tidak terlihat: **Adjust GitHub App Permissions** dan beri akses ke repo tersebut.)
-2. **Project Name**: `perumahanterpadu` (menghasilkan `perumahanterpadu.vercel.app`).
-   Framework: Next.js (terdeteksi otomatis). Build Command & Output: biarkan bawaan — Vercel otomatis memakai
-   script `vercel-build` yang menjalankan migration + seed lalu build.
-3. **Environment Variables** (centang **Production**; untuk Preview cukup bila memang dipakai):
+Vercel → project `perumahanterpadu` → **Settings → Environment Variables** (centang **Production**):
 
 | Key | Value |
 |---|---|
-| `DATABASE_URL` | Transaction pooler (langkah 1.3) |
-| `DIRECT_URL` | Session pooler (langkah 1.3) |
-| `ORGANIZATION_SLUG` | `taman-pesona-rajeg-mulya` |
-| `SESSION_SECRET` | hasil langkah 2 |
-| `DATA_ENCRYPTION_KEY` | hasil langkah 2 (berbeda dari SESSION_SECRET) |
-| `SESSION_TTL_HOURS` | `12` |
-| `TRUST_PROXY` | `true` (Vercel mengirim IP asli pengunjung di `x-real-ip`) |
-| `STORAGE_DRIVER` | `supabase` |
-| `SUPABASE_URL` | langkah 1.3 |
-| `SUPABASE_SERVICE_ROLE_KEY` | langkah 1.3 |
-| `SUPABASE_STORAGE_BUCKET` | `berkas-privat` |
-| `MAX_UPLOAD_MB` | `4` |
-| `EMERGENCY_AMBULANCE` / `EMERGENCY_POLICE` / `EMERGENCY_PLN` | nomor yang sudah diverifikasi |
+| `SESSION_SECRET` | hasil pertama |
+| `DATA_ENCRYPTION_KEY` | hasil kedua — **simpan baik-baik, jangan pernah diganti** (NIK terenkripsi dengan kunci ini) |
+| `EMERGENCY_AMBULANCE` / `EMERGENCY_POLICE` / `EMERGENCY_PLN` | nomor yang sudah diverifikasi (opsional) |
 | `EMERGENCY_VERIFIED` | `true` setelah nomor diverifikasi |
 
-   **Jangan** set `LOCAL_HTTP` dan `DEMO_PASSWORD` di Vercel.
-4. Klik **Deploy**. Build menjalankan `prisma migrate deploy` dan seed dasar (role, permission, kategori keuangan,
-   jenis surat). Database production **tidak** berisi data demo maupun akun apa pun.
-5. Cek: <https://perumahanterpadu.vercel.app/api/health> harus menampilkan status OK, lalu buka halaman login.
+Yang otomatis/bawaan sehingga **tidak perlu** diisi: `ORGANIZATION_SLUG` (bawaan `taman-pesona-rajeg-mulya`),
+`TRUST_PROXY` (otomatis di Vercel), `STORAGE_DRIVER` (otomatis Supabase di Vercel bila kunci Supabase tersedia),
+`SUPABASE_STORAGE_BUCKET` (bawaan `berkas-privat`). **Jangan** set `LOCAL_HTTP` maupun `DEMO_PASSWORD`.
 
-## 4. Akun Super Admin pertama
+## 4. Deploy & login
 
-Super Admin dibuat dari laptop (tidak ada pendaftaran Super Admin lewat web). Di folder project:
+1. Merge PR ke `main` (atau **Deployments → Redeploy** setelah mengisi environment variables).
+   Build production menjalankan `prisma migrate deploy` (tidak ada perubahan) dan seed idempoten.
+2. Cek <https://perumahanterpadu.vercel.app/api/health>, lalu login sebagai `superadmin`.
+3. Ganti password Super Admin di **Profil Saya**, lalu buat akun Admin/Security/warga, isi Master IPL, Data Rumah,
+   Data Warga (bisa impor Excel), dan Tunggakan Awal.
 
-```powershell
-cd C:\Users\Admin\perumahanterpadu
-git pull
-$env:DATABASE_URL="<DIRECT_URL dari Supabase>"
-$env:ORGANIZATION_SLUG="taman-pesona-rajeg-mulya"
-npm run setup:superadmin
-```
-
-Isi nama, username, email, dan password (minimal 10 karakter, kombinasi huruf & angka). Setelah selesai, tutup
-jendela PowerShell tersebut agar nilai rahasia tidak tertinggal, lalu login di
-<https://perumahanterpadu.vercel.app>. Dari sana Super Admin membuat akun Admin/Security/warga, mengisi Master IPL,
-Data Rumah, Data Warga (bisa impor Excel), dan Tunggakan Awal.
+Akun Super Admin tambahan atau reset password dapat dibuat dari laptop dengan `npm run setup:superadmin`
+(set `$env:DATABASE_URL` ke Session pooler URL terlebih dahulu).
 
 ## 5. Update aplikasi
 

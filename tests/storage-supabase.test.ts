@@ -4,11 +4,11 @@ import { maxUploadBytes, readStoredFile, storeFile } from "@/server/storage";
 
 beforeAll(ensureSeed);
 
-const ENV = { STORAGE_DRIVER: "supabase", SUPABASE_URL: "https://proj.supabase.co/", SUPABASE_SERVICE_ROLE_KEY: "service-key", SUPABASE_STORAGE_BUCKET: "berkas-privat" };
+const ENV = { STORAGE_DRIVER: "supabase", SUPABASE_URL: "https://proj.supabase.co/", SUPABASE_SERVICE_ROLE_KEY: "eyJservice.key", SUPABASE_STORAGE_BUCKET: "berkas-privat" };
 
 afterEach(() => {
   vi.unstubAllGlobals();
-  for (const k of Object.keys(ENV)) delete process.env[k];
+  for (const k of [...Object.keys(ENV), "SUPABASE_SECRET_KEY", "VERCEL"]) delete process.env[k];
   delete process.env.MAX_UPLOAD_MB;
 });
 
@@ -17,7 +17,7 @@ describe("Penyimpanan Supabase Storage", () => {
     Object.assign(process.env, ENV);
     const store = new Map<string, Buffer>();
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
-      expect((init?.headers as Record<string, string>).Authorization).toBe("Bearer service-key");
+      expect((init?.headers as Record<string, string>).Authorization).toBe("Bearer eyJservice.key");
       expect(url.startsWith("https://proj.supabase.co/storage/v1/object/berkas-privat/")).toBe(true);
       if (init?.method === "POST") { store.set(url, Buffer.from(init.body as Uint8Array)); return new Response("{}", { status: 200 }); }
       const b = store.get(url);
@@ -40,6 +40,20 @@ describe("Penyimpanan Supabase Storage", () => {
     const before = await prisma.storedFile.count();
     await expect(prisma.$transaction((tx) => storeFile(tx, org, { name: "b.png", data: PNG_1PX }, "ipl-proof", "u1"))).rejects.toThrow(/gagal/);
     expect(await prisma.storedFile.count()).toBe(before);
+  });
+
+  it("di Vercel otomatis memakai Supabase dengan secret key dari integrasi (header apikey)", async () => {
+    Object.assign(process.env, { VERCEL: "1", SUPABASE_URL: "https://proj.supabase.co", SUPABASE_SECRET_KEY: "sb_secret_abc" });
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+      const h = init?.headers as Record<string, string>;
+      expect(h.apikey).toBe("sb_secret_abc");
+      expect(h.Authorization).toBeUndefined();
+      return new Response("{}", { status: 200 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const org = await orgId();
+    await prisma.$transaction((tx) => storeFile(tx, org, { name: "b.png", data: PNG_1PX }, "ipl-proof", "u1"));
+    expect(fetchMock).toHaveBeenCalledOnce();
   });
 
   it("batas upload maksimal 4 MB (batas request Vercel)", () => {

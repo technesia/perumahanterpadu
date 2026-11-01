@@ -10,10 +10,11 @@ export const SESSION_COOKIE = "tprm_session";
 
 /**
  * IP klien untuk rate limiting & audit. Header X-Forwarded-For hanya dipercaya bila aplikasi
- * berada di belakang reverse proxy tepercaya (TRUST_PROXY=true); tanpa itu header dapat dipalsukan.
+ * berada di belakang reverse proxy tepercaya (TRUST_PROXY=true, atau berjalan di Vercel yang
+ * selalu menimpa X-Real-IP dengan IP asli pengunjung); tanpa itu header dapat dipalsukan.
  */
 export async function clientIp(): Promise<string | null> {
-  if (process.env.TRUST_PROXY !== "true") return null;
+  if (process.env.TRUST_PROXY !== "true" && process.env.VERCEL !== "1") return null;
   const h = await headers();
   return h.get("x-real-ip") || h.get("x-forwarded-for")?.split(",").at(-1)?.trim() || null;
 }
