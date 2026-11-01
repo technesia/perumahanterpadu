@@ -2,7 +2,7 @@ import ExcelJS from "exceljs";
 import { createHash } from "node:crypto";
 import { AppError } from "./errors";
 
-export const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
+export const MAX_IMPORT_BYTES = 4 * 1024 * 1024;
 export const MAX_IMPORT_ROWS = 2000;
 export const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
