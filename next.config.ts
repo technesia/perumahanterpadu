@@ -31,7 +31,7 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   serverExternalPackages: ["exceljs"],
   experimental: {
-    serverActions: { bodySizeLimit: "6mb" },
+    serverActions: { bodySizeLimit: "4.5mb" },
   },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];

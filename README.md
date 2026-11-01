@@ -51,6 +51,10 @@ Setup Docker ini **khusus untuk mencoba di komputer lokal**: kunci rahasianya pu
 HTTP (`LOCAL_HTTP=true` mematikan HSTS dan cookie `Secure`). Untuk server production ikuti
 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
+## Deploy ke Vercel + Supabase
+
+Lihat [docs/DEPLOYMENT-VERCEL.md](docs/DEPLOYMENT-VERCEL.md). Untuk VPS/Docker sendiri lihat [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
 ## Instalasi (development)
 
 Prasyarat: Node.js 20+ dan PostgreSQL 14+ (dengan ekstensi `btree_gist`, tersedia di paket standar PostgreSQL).

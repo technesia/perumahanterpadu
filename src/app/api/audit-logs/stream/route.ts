@@ -4,9 +4,11 @@ import { can } from "@/server/auth/context";
 import { auditLogsSince } from "@/server/services/audit-logs";
 
 export const dynamic = "force-dynamic";
+// Batas durasi fungsi serverless (Vercel). Stream ditutup sebelum batas ini; EventSource menyambung ulang otomatis.
+export const maxDuration = 60;
 
 const POLL_MS = 3000;
-const MAX_LIFETIME_MS = 5 * 60_000; // klien EventSource menyambung ulang otomatis
+const MAX_LIFETIME_MS = 50_000;
 
 /**
  * Server-Sent Events untuk Activity Log. Sumber data tetap tabel audit_logs;
