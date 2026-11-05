@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { getAuth } from "./auth/session";
 import { toActionError } from "./action";
 import type { AuthContext } from "./auth/context";
+import { httpStatusFor } from "./errors";
 
 /** Proteksi CSRF untuk route handler mutasi: Origin harus sama dengan Host. */
 export async function assertSameOrigin() {
@@ -24,6 +25,6 @@ export async function apiHandler(fn: (ctx: AuthContext) => Promise<unknown>, opt
     return NextResponse.json(await fn(ctx), { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
     const r = toActionError(e);
-    return NextResponse.json({ error: r.error }, { status: 400 });
+    return NextResponse.json({ error: r.error }, { status: httpStatusFor(e), headers: { "Cache-Control": "no-store" } });
   }
 }
