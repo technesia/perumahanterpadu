@@ -32,3 +32,15 @@ export class ConflictError extends AppError {
     super(message, "CONFLICT");
   }
 }
+
+/** Kode status HTTP untuk error di route handler API (pesan tetap dari toActionError). */
+export function httpStatusFor(e: unknown): number {
+  if (e instanceof AuthenticationError) return 401;
+  if (e instanceof ForbiddenError) return 403;
+  if (e instanceof NotFoundError) return 404;
+  if (e instanceof ConflictError) return 409;
+  if (e instanceof AppError) return e.code === "RATE_LIMITED" ? 429 : 400;
+  if (e instanceof Error && e.name === "ZodError") return 400;
+  if (typeof e === "object" && e !== null && (e as { code?: unknown }).code === "P2002") return 409;
+  return 500;
+}
